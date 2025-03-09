@@ -26,29 +26,31 @@ export default function ContactDetails({ contact }: ContactDetailsProps) {
 
   return (
     <Card className="animate-fade-in">
-      <CardHeader className="flex flex-row items-center gap-4 pb-2">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <CardHeader className="flex flex-row items-center gap-4 pb-2 bg-muted/30">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500">
           <User className="h-6 w-6" />
         </div>
         <div className="grid gap-0.5">
-          <CardTitle className="text-lg md:text-xl">{contact.name}</CardTitle>
+          <CardTitle className="text-lg md:text-xl">Contact</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid gap-2">
-          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-            <div className="text-sm font-medium">Số Điện Thoại:</div>
-            <div className="text-sm">{contact.phoneNumber}</div>
+      <CardContent className="grid gap-4 p-4">
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-1">
+            <div className="text-sm text-red-500 font-medium">Name:</div>
+            <div className="font-medium">{contact.name || "Unname"}</div>
           </div>
-          <Separator />
-          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-            <div className="text-sm font-medium">Mã Khách Hàng:</div>
-            <div className="text-sm">{contact.customerId}</div>
+          <div className="space-y-1">
+            <div className="text-sm text-red-500 font-medium">Số Điện Thoại:</div>
+            <div className="font-medium">{contact.phoneNumber}</div>
           </div>
-          <Separator />
-          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-            <div className="text-sm font-medium">Email:</div>
-            <div className="text-sm">{contact.email}</div>
+          <div className="space-y-1">
+            <div className="text-sm text-red-500 font-medium">Mã Khách Hàng:</div>
+            <div className="font-medium">{contact.customerId}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-sm text-red-500 font-medium">Email:</div>
+            <div className="font-medium">{contact.email || "N/A"}</div>
           </div>
         </div>
       </CardContent>

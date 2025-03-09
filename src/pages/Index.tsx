@@ -4,6 +4,7 @@ import SearchBar from "@/components/SearchBar";
 import CallHistory from "@/components/CallHistory";
 import ContactDetails from "@/components/ContactDetails";
 import TicketHistory from "@/components/TicketHistory";
+import MissedCallInfo from "@/components/MissedCallInfo";
 import { useToast } from "@/components/ui/use-toast";
 
 interface Contact {
@@ -25,13 +26,14 @@ interface Call {
 export default function Index() {
   const { toast } = useToast();
   const [contact, setContact] = useState<Contact | null>(null);
+  const [searchedPhoneNumber, setSearchedPhoneNumber] = useState<string>("");
 
   const mockCalls: Call[] = [
     {
       id: "1",
       date: "20/03/2024",
       time: "10:45:23",
-      phoneNumber: "0123456789",
+      phoneNumber: "0978264656",
       status: "tiếp nhận",
       duration: "05:23",
     },
@@ -54,10 +56,23 @@ export default function Index() {
   ];
 
   const handleSearch = (phoneNumber: string) => {
+    setSearchedPhoneNumber(phoneNumber);
+    
     // Mock API call - in a real app, this would call your backend
     setTimeout(() => {
-      // Check if the phone number matches one of our mock data
-      if (phoneNumber === "0123456789") {
+      // Check for the specific number shown in the reference image
+      if (phoneNumber === "0978264656") {
+        setContact({
+          name: "Unname",
+          phoneNumber: "0978264656",
+          customerId: "54",
+          email: "N/A",
+        });
+        toast({
+          title: "Khách hàng được tìm thấy",
+          description: "Thông tin khách hàng đã được hiển thị",
+        });
+      } else if (phoneNumber === "0123456789") {
         setContact({
           name: "Nguyễn Văn A",
           phoneNumber: "0123456789",
@@ -99,6 +114,9 @@ export default function Index() {
             <SearchBar onSearch={handleSearch} />
           </div>
           {contact && <ContactDetails contact={contact} />}
+          {searchedPhoneNumber === "0978264656" && (
+            <MissedCallInfo phoneNumber={searchedPhoneNumber} />
+          )}
         </div>
         
         <div className="w-full md:w-2/3 lg:w-3/4 space-y-6">
