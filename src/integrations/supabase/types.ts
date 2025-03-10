@@ -58,8 +58,8 @@ export type Database = {
           customerID: string | null
           customerName: string
           customerPhone: string
-          firstActivity: number
-          lastActivity: number
+          firstActivity: string
+          lastActivity: string
         }
         Insert: {
           customerCode?: number
@@ -67,8 +67,8 @@ export type Database = {
           customerID?: string | null
           customerName?: string
           customerPhone: string
-          firstActivity: number
-          lastActivity: number
+          firstActivity?: string
+          lastActivity?: string
         }
         Update: {
           customerCode?: number
@@ -76,8 +76,8 @@ export type Database = {
           customerID?: string | null
           customerName?: string
           customerPhone?: string
-          firstActivity?: number
-          lastActivity?: number
+          firstActivity?: string
+          lastActivity?: string
         }
         Relationships: []
       }
@@ -141,7 +141,7 @@ export type Database = {
           status: string
           ticketCode?: number
           ticketSerial: string
-          timeEnd: string
+          timeEnd?: string
           timeStart: string
         }
         Update: {

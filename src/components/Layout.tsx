@@ -1,5 +1,5 @@
 
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { LogOut, User } from "lucide-react";
@@ -9,27 +9,11 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import AgentChat from "./AgentChat";
 
 export default function Layout() {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  // Mock data for the logged-in employee
-  const loggedInEmployee = {
-    name: "Nguyễn Văn Chuyên",
-    position: "Nhân viên CSKH",
-    id: "NV001"
-  };
-
-  const handleLogout = () => {
-    // In a real app, this would call your authentication service
-    toast({
-      title: "Đăng xuất thành công",
-      description: "Bạn đã đăng xuất khỏi hệ thống"
-    });
-    navigate("/login");
-  };
+  const { agent, logout } = useAuth();
 
   return (
     <ThemeProvider defaultTheme="light">
@@ -44,12 +28,12 @@ export default function Layout() {
               <DropdownMenu>
                 <DropdownMenuTrigger className="outline-none">
                   <div className="text-sm hover:bg-muted/50 rounded-md py-1 px-2 transition-colors">
-                    <div className="font-medium">{loggedInEmployee.name}</div>
-                    <div className="text-muted-foreground text-xs text-left">{loggedInEmployee.position} | ID: {loggedInEmployee.id}</div>
+                    <div className="font-medium">{agent?.name}</div>
+                    <div className="text-muted-foreground text-xs text-left">ID: {agent?.id}</div>
                   </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
                     Đăng xuất
                   </DropdownMenuItem>
@@ -64,6 +48,7 @@ export default function Layout() {
         <main className="flex-1 container mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <Outlet />
         </main>
+        <AgentChat />
       </div>
     </ThemeProvider>
   );

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Select,
   SelectContent,
@@ -11,66 +11,76 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { generateTicketSerial } from "@/utils/formatters";
+import { ConfigData } from "@/pages/Index";
 
 interface TicketFormProps {
+  customerCode: number;
+  configData: ConfigData;
   onSave?: () => void;
 }
 
-export default function TicketForm({ onSave }: TicketFormProps) {
+export default function TicketForm({ customerCode, configData, onSave }: TicketFormProps) {
   const { toast } = useToast();
+  const { agent } = useAuth();
   const [notes, setNotes] = useState("");
   const [requestType, setRequestType] = useState("");
   const [serviceType, setServiceType] = useState("");
-  const [status, setStatus] = useState("");
-  const [channel, setChannel] = useState("");
-  const [departmentCollaboration, setDepartmentCollaboration] = useState("");
+  const [detailOptions, setDetailOptions] = useState<{id: string, label: string}[]>([]);
   const [ticketDetail, setTicketDetail] = useState("");
+  const [status, setStatus] = useState("DONE"); // Default to DONE
+  const [channel, setChannel] = useState("Inbound"); // Default to Inbound
+  const [departmentCollaboration, setDepartmentCollaboration] = useState("Không"); // Default to Không
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock data for dropdowns
-  const requestTypes = [
-    { id: "1", label: "Hỗ trợ hợp đồng cho KH doanh nghiệp" },
-    { id: "2", label: "Khiếu nại dịch vụ" },
-    { id: "3", label: "Hỗ trợ kỹ thuật" },
-    { id: "4", label: "Thanh toán" },
-    { id: "5", label: "Khác" },
-  ];
+  // Update detail options when request type changes
+  useEffect(() => {
+    if (requestType && configData.detailOptionsMap[requestType]) {
+      setDetailOptions(configData.detailOptionsMap[requestType]);
+      setTicketDetail("");
+    } else {
+      setDetailOptions([]);
+      setTicketDetail("");
+    }
+  }, [requestType, configData.detailOptionsMap]);
 
-  const serviceTypes = [
-    { id: "1", label: "Tra cứu/Hỗ trợ thông tin" },
-    { id: "2", label: "Dịch vụ CNTT" },
-    { id: "3", label: "Dịch vụ viễn thông" },
-    { id: "4", label: "Khác" },
-  ];
+  // Set default values when config data loads
+  useEffect(() => {
+    if (configData.statusOptions.length > 0) {
+      const doneOption = configData.statusOptions.find(option => option.label === "DONE");
+      if (doneOption) {
+        setStatus(doneOption.label);
+      }
+    }
+    
+    if (configData.channelOptions.length > 0) {
+      const inboundOption = configData.channelOptions.find(option => option.label === "Inbound");
+      if (inboundOption) {
+        setChannel(inboundOption.label);
+      }
+    }
+    
+    if (configData.departmentOptions.length > 0) {
+      const noOption = configData.departmentOptions.find(option => option.label === "Không");
+      if (noOption) {
+        setDepartmentCollaboration(noOption.label);
+      }
+    }
+  }, [configData]);
 
-  const statusOptions = [
-    { id: "1", label: "Đã Xử Lý" },
-    { id: "2", label: "Đang xử lý" },
-    { id: "3", label: "Mới" },
-    { id: "4", label: "Hủy" },
-  ];
+  const handleSave = async () => {
+    if (!agent) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Bạn chưa đăng nhập",
+      });
+      return;
+    }
 
-  const channelOptions = [
-    { id: "1", label: "Inbound" },
-    { id: "2", label: "Outbound" },
-    { id: "3", label: "Email" },
-    { id: "4", label: "Chat" },
-  ];
-
-  const departmentOptions = [
-    { id: "1", label: "Không" },
-    { id: "2", label: "Phòng CSKH" },
-    { id: "3", label: "Phòng Kỹ Thuật" },
-    { id: "4", label: "Phòng Kinh Doanh" },
-  ];
-
-  const detailOptions = [
-    { id: "1", label: "Chi tiết 1" },
-    { id: "2", label: "Chi tiết 2" },
-    { id: "3", label: "Chi tiết 3" },
-  ];
-
-  const handleSave = () => {
-    if (!notes || !requestType || !status || !channel) {
+    if (!notes || !requestType || !serviceType || !ticketDetail || !status || !channel) {
       toast({
         variant: "destructive",
         title: "Thông tin chưa đầy đủ",
@@ -79,22 +89,112 @@ export default function TicketForm({ onSave }: TicketFormProps) {
       return;
     }
 
-    toast({
-      title: "Đã lưu thành công",
-      description: "Thông tin tương tác đã được ghi nhận",
-    });
+    setIsSubmitting(true);
 
-    // Reset form after saving
-    setNotes("");
-    setRequestType("");
-    setServiceType("");
-    setStatus("");
-    setChannel("");
-    setDepartmentCollaboration("");
-    setTicketDetail("");
+    try {
+      const now = new Date().toISOString();
+      
+      // Get customer's lastActivity
+      const { data: customerData, error: customerError } = await supabase
+        .from("Customer")
+        .select("lastActivity")
+        .eq("customerCode", customerCode)
+        .single();
+      
+      if (customerError) throw customerError;
+      
+      const timeStart = customerData.lastActivity;
+      
+      // Insert new interaction
+      const { data: interactionData, error: interactionError } = await supabase
+        .from("Interaction")
+        .insert({
+          customerCode: customerCode,
+          timeStart: timeStart,
+          nhuCauKH: requestType,
+          chiTietNhuCau: ticketDetail,
+          noteInput: notes,
+          agentID: agent.id,
+          status: status,
+          // ticketSerial will be updated after ticket creation
+          ticketSerial: "temp"
+        })
+        .select()
+        .single();
+      
+      if (interactionError) throw interactionError;
+      
+      // Get next ticket code
+      const { data: maxTicketData } = await supabase
+        .from("Ticket")
+        .select("ticketCode")
+        .order("ticketCode", { ascending: false })
+        .limit(1)
+        .single();
+      
+      const nextTicketCode = maxTicketData ? maxTicketData.ticketCode + 1 : 1;
+      
+      // Generate ticket serial
+      const ticketSerial = generateTicketSerial(
+        serviceType, 
+        agent.id, 
+        timeStart, 
+        nextTicketCode
+      );
+      
+      // Insert new ticket
+      const { error: ticketError } = await supabase
+        .from("Ticket")
+        .insert({
+          ticketSerial: ticketSerial,
+          agent: agent.id,
+          kenhTiepNhan: channel,
+          interactionCodeStart: interactionData.interactionCode,
+          timeStart: timeStart,
+          customerCode: customerCode,
+          phoiHop: departmentCollaboration,
+          status: status,
+          interactionCodeEnd: interactionData.interactionCode,
+          ticketCode: nextTicketCode,
+          timeEnd: now
+        });
+      
+      if (ticketError) throw ticketError;
+      
+      // Update the interaction with the correct ticketSerial
+      const { error: updateError } = await supabase
+        .from("Interaction")
+        .update({ ticketSerial: ticketSerial })
+        .eq("interactionCode", interactionData.interactionCode);
+      
+      if (updateError) throw updateError;
+      
+      toast({
+        title: "Đã lưu thành công",
+        description: "Thông tin tương tác đã được ghi nhận",
+      });
 
-    // Call parent onSave if provided
-    if (onSave) onSave();
+      // Reset form after saving
+      setNotes("");
+      setRequestType("");
+      setServiceType("");
+      setTicketDetail("");
+      setStatus("DONE");
+      setChannel("Inbound");
+      setDepartmentCollaboration("Không");
+
+      // Call parent onSave if provided
+      if (onSave) onSave();
+    } catch (error) {
+      console.error("Error saving ticket:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể lưu thông tin, vui lòng thử lại sau",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -112,14 +212,14 @@ export default function TicketForm({ onSave }: TicketFormProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Nhu Cầu Khách Hàng</label>
-          <Select value={requestType} onValueChange={setRequestType}>
+          <Select value={requestType} onValueChange={(value) => setRequestType(value)}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Chọn nhu cầu" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {requestTypes.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
+                {configData.requestTypes.map((option) => (
+                  <SelectItem key={option.id} value={option.label}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -136,8 +236,8 @@ export default function TicketForm({ onSave }: TicketFormProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {serviceTypes.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
+                {configData.serviceTypes.map((option) => (
+                  <SelectItem key={option.id} value={option.label}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -155,7 +255,7 @@ export default function TicketForm({ onSave }: TicketFormProps) {
             <SelectContent>
               <SelectGroup>
                 {detailOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
+                  <SelectItem key={option.id} value={option.label}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -168,12 +268,12 @@ export default function TicketForm({ onSave }: TicketFormProps) {
           <label className="text-sm font-medium">Trạng thái Xử Lý</label>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Chọn trạng thái" />
+              <SelectValue placeholder="DONE" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
+                {configData.statusOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.label}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -190,8 +290,8 @@ export default function TicketForm({ onSave }: TicketFormProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {departmentOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
+                {configData.departmentOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.label}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -208,8 +308,8 @@ export default function TicketForm({ onSave }: TicketFormProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {channelOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
+                {configData.channelOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.label}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -220,8 +320,12 @@ export default function TicketForm({ onSave }: TicketFormProps) {
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button className="bg-blue-800 hover:bg-blue-900" onClick={handleSave}>
-          Lưu Lại
+        <Button 
+          className="bg-blue-800 hover:bg-blue-900" 
+          onClick={handleSave}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Đang lưu..." : "Lưu Lại"}
         </Button>
       </div>
     </div>

@@ -6,13 +6,15 @@ import {
   CardHeader,
   CardTitle 
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { formatDate } from "@/utils/formatters";
 
 interface Contact {
-  name: string;
-  phoneNumber: string;
-  customerId: string;
-  email: string;
+  customerName?: string;
+  customerPhone: string;
+  customerID?: string;
+  customerEmail?: string;
+  lastActivity?: string;
+  customerCode?: number;
 }
 
 interface ContactDetailsProps {
@@ -38,19 +40,25 @@ export default function ContactDetails({ contact }: ContactDetailsProps) {
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-1">
             <div className="text-sm text-red-500 font-medium">Name:</div>
-            <div className="font-medium">{contact.name || "Unname"}</div>
+            <div className="font-medium">{contact.customerName || "Unname"}</div>
           </div>
           <div className="space-y-1">
             <div className="text-sm text-red-500 font-medium">Số Điện Thoại:</div>
-            <div className="font-medium">{contact.phoneNumber}</div>
+            <div className="font-medium">{contact.customerPhone}</div>
           </div>
           <div className="space-y-1">
             <div className="text-sm text-red-500 font-medium">Mã Khách Hàng:</div>
-            <div className="font-medium">{contact.customerId}</div>
+            <div className="font-medium">{contact.customerID || "N/A"}</div>
           </div>
           <div className="space-y-1">
             <div className="text-sm text-red-500 font-medium">Email:</div>
-            <div className="font-medium">{contact.email || "N/A"}</div>
+            <div className="font-medium">{contact.customerEmail || "N/A"}</div>
+          </div>
+          <div className="space-y-1 col-span-2">
+            <div className="text-sm text-red-500 font-medium">Hoạt động gần nhất:</div>
+            <div className="font-medium">
+              {contact.lastActivity ? formatDate(contact.lastActivity) : "N/A"}
+            </div>
           </div>
         </div>
       </CardContent>

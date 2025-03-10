@@ -2,41 +2,26 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
+import { Navigate } from "react-router-dom";
 import { User, Lock, LogIn } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Login() {
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const { agent, login, loading } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    // In a real app, this would be an API call to authenticate
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      // For demo - accept any non-empty credentials
-      if (username && password) {
-        toast({
-          title: "Đăng nhập thành công",
-          description: "Chào mừng bạn trở lại hệ thống"
-        });
-        navigate("/");
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Đăng nhập thất bại",
-          description: "Vui lòng kiểm tra lại tên đăng nhập và mật khẩu"
-        });
-      }
-    }, 1000);
+    if (username && password) {
+      await login(username, password);
+    }
   };
+
+  // Redirect if already logged in
+  if (agent) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
@@ -89,9 +74,9 @@ export default function Login() {
           <Button 
             type="submit" 
             className="w-full"
-            disabled={isLoading}
+            disabled={loading}
           >
-            {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
+            {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </Button>
         </form>
         
