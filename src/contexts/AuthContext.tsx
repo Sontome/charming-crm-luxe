@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch the agent with the provided ID and password
       const { data, error } = await supabase
         .from("Agent")
-        .select("id, name, email")
+        .select("id, name, email, password")
         .eq("id", id)
         .eq("password", password)
         .maybeSingle();
@@ -59,9 +59,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Verify password match - additional check just to be sure
+      if (data.password !== password) {
+        toast({
+          variant: "destructive",
+          title: "Đăng nhập thất bại",
+          description: "Tên đăng nhập hoặc mật khẩu không đúng"
+        });
+        return;
+      }
+
+      // Remove password from the agent object before storing
+      const { password: _, ...agentWithoutPassword } = data;
+      
       // Set the agent in state and session storage
-      setAgent(data);
-      sessionStorage.setItem("agent", JSON.stringify(data));
+      setAgent(agentWithoutPassword);
+      sessionStorage.setItem("agent", JSON.stringify(agentWithoutPassword));
       
       // Update last active time
       await supabase
