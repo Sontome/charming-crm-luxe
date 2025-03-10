@@ -38,13 +38,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       
+      console.log("Attempting login with:", id, password);
+      
       // Fetch the agent with the provided ID and password
       const { data, error } = await supabase
         .from("Agent")
         .select("id, name, email")
         .eq("id", id)
         .eq("password", password)
-        .single();
+        .maybeSingle();
+
+      console.log("Login response:", data, error);
 
       if (error || !data) {
         toast({

@@ -14,6 +14,7 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (username && password) {
+      console.log("Login button clicked with:", username, password);
       await login(username, password);
     }
   };
