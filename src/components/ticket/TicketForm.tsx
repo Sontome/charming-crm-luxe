@@ -20,9 +20,10 @@ interface TicketFormProps {
   customerCode: number;
   configData: ConfigData;
   onSave?: () => void;
+  onClear?: () => void; // New prop for clearing search and history
 }
 
-export default function TicketForm({ customerCode, configData, onSave }: TicketFormProps) {
+export default function TicketForm({ customerCode, configData, onSave, onClear }: TicketFormProps) {
   const { toast } = useToast();
   const { agent } = useAuth();
   const [notes, setNotes] = useState("");
@@ -105,25 +106,6 @@ export default function TicketForm({ customerCode, configData, onSave }: TicketF
       
       const timeStart = customerData.lastActivity;
       
-      // Insert new interaction
-      const { data: interactionData, error: interactionError } = await supabase
-        .from("Interaction")
-        .insert({
-          customerCode: customerCode,
-          timeStart: timeStart,
-          nhuCauKH: requestType,
-          chiTietNhuCau: ticketDetail,
-          noteInput: notes,
-          agentID: agent.id,
-          status: status,
-          // ticketSerial will be updated after ticket creation
-          ticketSerial: "temp"
-        })
-        .select()
-        .single();
-      
-      if (interactionError) throw interactionError;
-      
       // Get next ticket code
       const { data: maxTicketData } = await supabase
         .from("Ticket")
@@ -141,6 +123,24 @@ export default function TicketForm({ customerCode, configData, onSave }: TicketF
         timeStart, 
         nextTicketCode
       );
+
+      // Insert new interaction first
+      const { data: interactionData, error: interactionError } = await supabase
+        .from("Interaction")
+        .insert({
+          customerCode: customerCode,
+          timeStart: timeStart,
+          nhuCauKH: requestType,
+          chiTietNhuCau: ticketDetail,
+          noteInput: notes,
+          agentID: agent.id,
+          status: status,
+          ticketSerial: ticketSerial // Use the generated ticketSerial immediately
+        })
+        .select()
+        .single();
+      
+      if (interactionError) throw interactionError;
       
       // Insert new ticket
       const { error: ticketError } = await supabase
@@ -161,14 +161,6 @@ export default function TicketForm({ customerCode, configData, onSave }: TicketF
       
       if (ticketError) throw ticketError;
       
-      // Update the interaction with the correct ticketSerial
-      const { error: updateError } = await supabase
-        .from("Interaction")
-        .update({ ticketSerial: ticketSerial })
-        .eq("interactionCode", interactionData.interactionCode);
-      
-      if (updateError) throw updateError;
-      
       toast({
         title: "Đã lưu thành công",
         description: "Thông tin tương tác đã được ghi nhận",
@@ -185,6 +177,9 @@ export default function TicketForm({ customerCode, configData, onSave }: TicketF
 
       // Call parent onSave if provided
       if (onSave) onSave();
+      
+      // Call onClear to reset search and ticket history
+      if (onClear) onClear();
     } catch (error) {
       console.error("Error saving ticket:", error);
       toast({

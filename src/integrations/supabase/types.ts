@@ -56,7 +56,7 @@ export type Database = {
           customerCode: number
           customerEmail: string | null
           customerID: string | null
-          customerName: string
+          customerName: string | null
           customerPhone: string
           firstActivity: string
           lastActivity: string
@@ -65,7 +65,7 @@ export type Database = {
           customerCode?: number
           customerEmail?: string | null
           customerID?: string | null
-          customerName?: string
+          customerName?: string | null
           customerPhone: string
           firstActivity?: string
           lastActivity?: string
@@ -74,7 +74,7 @@ export type Database = {
           customerCode?: number
           customerEmail?: string | null
           customerID?: string | null
-          customerName?: string
+          customerName?: string | null
           customerPhone?: string
           firstActivity?: string
           lastActivity?: string
@@ -157,7 +157,15 @@ export type Database = {
           timeEnd?: string
           timeStart?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Ticket_interactionCodeStart_fkey"
+            columns: ["interactionCodeStart"]
+            isOneToOne: false
+            referencedRelation: "Interaction"
+            referencedColumns: ["interactionCode"]
+          },
+        ]
       }
     }
     Views: {

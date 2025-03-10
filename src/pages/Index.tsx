@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import SearchBar from "@/components/SearchBar";
 import CallHistory from "@/components/CallHistory";
@@ -192,6 +191,12 @@ export default function Index() {
     fetchConfigData();
   }, [toast]);
 
+  const handleClearAll = () => {
+    // Clear customer and search info
+    setCustomer(null);
+    setSearchedPhoneNumber("");
+  };
+
   const handleSearch = async (phoneNumber: string) => {
     // Format the phone number
     const formattedPhone = formatPhoneNumber(phoneNumber);
@@ -285,6 +290,7 @@ export default function Index() {
             <TicketHistory 
               customerCode={customer.customerCode} 
               configData={configData} 
+              onClear={handleClearAll}
             />
           )}
         </div>

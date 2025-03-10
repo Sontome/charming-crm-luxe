@@ -22,9 +22,10 @@ interface Interaction {
 interface TicketHistoryProps {
   customerCode: number;
   configData: ConfigData;
+  onClear?: () => void; // New prop for clearing
 }
 
-export default function TicketHistory({ customerCode, configData }: TicketHistoryProps) {
+export default function TicketHistory({ customerCode, configData, onClear }: TicketHistoryProps) {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [groupedInteractions, setGroupedInteractions] = useState<any[]>([]);
   const { toast } = useToast();
@@ -165,6 +166,10 @@ export default function TicketHistory({ customerCode, configData }: TicketHistor
     }
   };
 
+  const handleClearAll = () => {
+    if (onClear) onClear();
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Ticket history table */}
@@ -175,6 +180,7 @@ export default function TicketHistory({ customerCode, configData }: TicketHistor
         customerCode={customerCode}
         configData={configData} 
         onSave={handleSaveSuccess}
+        onClear={handleClearAll}
       />
     </div>
   );
