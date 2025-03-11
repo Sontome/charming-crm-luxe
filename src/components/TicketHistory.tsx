@@ -22,7 +22,7 @@ interface Interaction {
 interface TicketHistoryProps {
   customerCode: number;
   configData: ConfigData;
-  onClear?: () => void; // New prop for clearing
+  onClear?: () => void; // Prop for clearing
 }
 
 export default function TicketHistory({ customerCode, configData, onClear }: TicketHistoryProps) {

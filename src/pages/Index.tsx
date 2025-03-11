@@ -46,6 +46,7 @@ export default function Index() {
   const { agent } = useAuth();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [searchedPhoneNumber, setSearchedPhoneNumber] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
   const [configData, setConfigData] = useState<ConfigData>({
     serviceTypes: [],
     requestTypes: [],
@@ -82,53 +83,44 @@ export default function Index() {
     },
   ];
 
-  // Fetch dropdown configuration data
   useEffect(() => {
     const fetchConfigData = async () => {
       try {
-        // Fetch service types
         const { data: serviceTypesData } = await supabase
           .from("Config")
           .select("Value1")
           .eq("DropdownName", "loaiDv");
         
-        // Fetch request types (unique values from Value2 where DropdownName is chiTietNhuCau)
         const { data: requestTypesData } = await supabase
           .from("Config")
           .select("Value2")
           .eq("DropdownName", "chiTietNhuCau");
         
-        // Fetch status options
         const { data: statusData } = await supabase
           .from("Config")
           .select("Value1")
           .eq("DropdownName", "trangThai");
         
-        // Fetch department options
         const { data: departmentData } = await supabase
           .from("Config")
           .select("Value1")
           .eq("DropdownName", "phoiHop");
         
-        // Fetch channel options
         const { data: channelData } = await supabase
           .from("Config")
           .select("Value1")
           .eq("DropdownName", "kenhTiepNhan");
         
-        // Fetch all detail options for mapping
         const { data: allDetailOptions } = await supabase
           .from("Config")
           .select("Value1, Value2")
           .eq("DropdownName", "chiTietNhuCau");
         
-        // Process and set the data
         const serviceTypes = serviceTypesData?.map((item, index) => ({
           id: index.toString(),
           label: item.Value1
         })) || [];
         
-        // Get unique request types from Value2
         const uniqueRequestTypes = Array.from(
           new Set(requestTypesData?.map(item => item.Value2).filter(Boolean))
         );
@@ -153,10 +145,8 @@ export default function Index() {
           label: item.Value1
         })) || [];
         
-        // Create a map of detail options by request type
         const detailOptionsMap: Record<string, DropdownOption[]> = {};
         
-        // Group detail options by request type (Value2)
         allDetailOptions?.forEach((item) => {
           if (item.Value2) {
             if (!detailOptionsMap[item.Value2]) {
@@ -192,28 +182,26 @@ export default function Index() {
   }, [toast]);
 
   const handleClearAll = () => {
-    // Clear customer and search info
     setCustomer(null);
     setSearchedPhoneNumber("");
   };
 
   const handleSearch = async (phoneNumber: string) => {
-    // Format the phone number
     const formattedPhone = formatPhoneNumber(phoneNumber);
     setSearchedPhoneNumber(formattedPhone);
+    setIsSearching(true);
     
     try {
-      // Search for the customer in the database
       const { data: customerData, error } = await supabase
         .from("Customer")
         .select("*")
         .eq("customerPhone", formattedPhone)
         .single();
       
+      const now = new Date().toISOString();
+      
       if (error) {
         if (error.code === "PGRST116") {
-          // Customer not found, create a new one
-          const now = new Date().toISOString();
           const { data: newCustomer, error: createError } = await supabase
             .from("Customer")
             .insert({
@@ -237,8 +225,6 @@ export default function Index() {
           throw error;
         }
       } else {
-        // Customer found, update lastActivity
-        const now = new Date().toISOString();
         const { error: updateError } = await supabase
           .from("Customer")
           .update({ lastActivity: now })
@@ -265,6 +251,8 @@ export default function Index() {
         title: "Lỗi tìm kiếm",
         description: "Không thể tìm kiếm khách hàng, vui lòng thử lại sau",
       });
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -278,14 +266,14 @@ export default function Index() {
           
           <div className="bg-card rounded-lg p-4 border shadow-sm">
             <h2 className="text-lg font-medium mb-4">Tìm kiếm khách hàng</h2>
-            <SearchBar onSearch={handleSearch} />
+            <SearchBar onSearch={handleSearch} isLoading={isSearching} />
           </div>
           
           {customer && <ContactDetails contact={customer} />}
         </div>
         
         <div className="w-full md:w-2/3 lg:w-3/4 space-y-6">
-          <CallHistory calls={mockCalls} />
+          <CallHistory />
           {customer && (
             <TicketHistory 
               customerCode={customer.customerCode} 
