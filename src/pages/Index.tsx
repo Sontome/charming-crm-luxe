@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import CallHistory from "@/components/CallHistory";
 import ContactDetails from "@/components/ContactDetails";
@@ -44,6 +45,7 @@ export interface ConfigData {
 export default function Index() {
   const { toast } = useToast();
   const { agent } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [searchedPhoneNumber, setSearchedPhoneNumber] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
@@ -181,6 +183,15 @@ export default function Index() {
     fetchConfigData();
   }, [toast]);
 
+  useEffect(() => {
+    const phoneParam = searchParams.get('phone');
+    if (phoneParam && !searchedPhoneNumber) {
+      handleSearch(phoneParam);
+      searchParams.delete('phone');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams]);
+
   const handleClearAll = () => {
     setCustomer(null);
     setSearchedPhoneNumber("");
@@ -280,7 +291,7 @@ export default function Index() {
         </div>
         
         <div className="w-full md:w-2/3 lg:w-3/4 space-y-6">
-          <CallHistory />
+          <CallHistory onSearch={handleSearch} />
           {customer && (
             <TicketHistory 
               customerCode={customer.customerCode} 
