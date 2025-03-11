@@ -67,7 +67,7 @@ export type Database = {
           customerID?: string | null
           customerName?: string | null
           customerPhone: string
-          firstActivity?: string
+          firstActivity: string
           lastActivity?: string
         }
         Update: {

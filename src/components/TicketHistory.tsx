@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/utils/formatters";
 import { ConfigData } from "@/pages/Index";
 import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface Interaction {
   interactionCode: number;
@@ -22,18 +23,20 @@ interface Interaction {
 interface TicketHistoryProps {
   customerCode: number;
   configData: ConfigData;
-  onClear?: () => void; // Prop for clearing
+  onClear?: () => void;
 }
 
 export default function TicketHistory({ customerCode, configData, onClear }: TicketHistoryProps) {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [groupedInteractions, setGroupedInteractions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchInteractions = async () => {
       if (!customerCode) return;
 
+      setIsLoading(true);
       try {
         // Fetch all interactions for this customer
         const { data, error } = await supabase
@@ -102,6 +105,8 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
           title: "Lỗi",
           description: "Không thể tải lịch sử tương tác"
         });
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -112,6 +117,8 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
     // Refresh the interactions list
     if (customerCode) {
       const fetchInteractions = async () => {
+        setIsLoading(true);
+        
         const { data, error } = await supabase
           .from("Interaction")
           .select("*")
@@ -120,6 +127,7 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
 
         if (error) {
           console.error("Error refreshing interactions:", error);
+          setIsLoading(false);
           return;
         }
         
@@ -160,6 +168,8 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
           
           setGroupedInteractions(tableData);
         }
+        
+        setIsLoading(false);
       };
 
       fetchInteractions();
@@ -173,7 +183,16 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Ticket history table */}
-      <TicketTable tickets={groupedInteractions} />
+      {isLoading ? (
+        <div className="flex justify-center items-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Đang tải dữ liệu...</span>
+        </div>
+      ) : (
+        <div className="transition-all duration-300 hover:shadow-md rounded-lg">
+          <TicketTable tickets={groupedInteractions} />
+        </div>
+      )}
       
       {/* Notes and new interaction form */}
       <TicketForm 

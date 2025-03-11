@@ -15,12 +15,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateTicketSerial } from "@/utils/formatters";
 import { ConfigData } from "@/pages/Index";
+import { Loader2 } from "lucide-react";
 
 interface TicketFormProps {
   customerCode: number;
   configData: ConfigData;
   onSave?: () => void;
-  onClear?: () => void; // New prop for clearing search and history
+  onClear?: () => void;
 }
 
 export default function TicketForm({ customerCode, configData, onSave, onClear }: TicketFormProps) {
@@ -31,9 +32,9 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
   const [serviceType, setServiceType] = useState("");
   const [detailOptions, setDetailOptions] = useState<{id: string, label: string}[]>([]);
   const [ticketDetail, setTicketDetail] = useState("");
-  const [status, setStatus] = useState("DONE"); // Default to DONE
-  const [channel, setChannel] = useState("Inbound"); // Default to Inbound
-  const [departmentCollaboration, setDepartmentCollaboration] = useState("Không"); // Default to Không
+  const [status, setStatus] = useState("DONE");
+  const [channel, setChannel] = useState("Inbound");
+  const [departmentCollaboration, setDepartmentCollaboration] = useState("Không");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Update detail options when request type changes
@@ -95,7 +96,7 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
     try {
       const now = new Date().toISOString();
       
-      // Get customer's lastActivity
+      // Get customer's lastActivity for timeStart
       const { data: customerData, error: customerError } = await supabase
         .from("Customer")
         .select("lastActivity")
@@ -116,7 +117,7 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       
       const nextTicketCode = maxTicketData ? maxTicketData.ticketCode + 1 : 1;
       
-      // Generate ticket serial
+      // Generate ticket serial with the updated format
       const ticketSerial = generateTicketSerial(
         serviceType, 
         agent.id, 
@@ -135,14 +136,14 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
           noteInput: notes,
           agentID: agent.id,
           status: status,
-          ticketSerial: ticketSerial // Use the generated ticketSerial immediately
+          ticketSerial: ticketSerial
         })
         .select()
         .single();
       
       if (interactionError) throw interactionError;
       
-      // Insert new ticket
+      // Insert new ticket with timeStart from lastActivity and timeEnd as now
       const { error: ticketError } = await supabase
         .from("Ticket")
         .insert({
@@ -193,12 +194,12 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in shadow-md p-6 rounded-lg bg-card">
       <div className="space-y-2">
         <label className="text-sm font-medium">Notes</label>
         <Textarea 
           placeholder="Nhập ghi chú tại đây..." 
-          className="min-h-[120px] w-full border" 
+          className="min-h-[120px] w-full border transition-shadow focus:shadow-md" 
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
@@ -208,10 +209,10 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
         <div className="space-y-2">
           <label className="text-sm font-medium">Nhu Cầu Khách Hàng</label>
           <Select value={requestType} onValueChange={(value) => setRequestType(value)}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
               <SelectValue placeholder="Chọn nhu cầu" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="animate-fade-in">
               <SelectGroup>
                 {configData.requestTypes.map((option) => (
                   <SelectItem key={option.id} value={option.label}>
@@ -226,10 +227,10 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
         <div className="space-y-2">
           <label className="text-sm font-medium">Loại DV</label>
           <Select value={serviceType} onValueChange={setServiceType}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
               <SelectValue placeholder="Chọn loại dịch vụ" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="animate-fade-in">
               <SelectGroup>
                 {configData.serviceTypes.map((option) => (
                   <SelectItem key={option.id} value={option.label}>
@@ -244,10 +245,10 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
         <div className="space-y-2">
           <label className="text-sm font-medium">Chi Tiết Nhu Cầu</label>
           <Select value={ticketDetail} onValueChange={setTicketDetail}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
               <SelectValue placeholder="Chọn chi tiết" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="animate-fade-in">
               <SelectGroup>
                 {detailOptions.map((option) => (
                   <SelectItem key={option.id} value={option.label}>
@@ -262,10 +263,10 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
         <div className="space-y-2">
           <label className="text-sm font-medium">Trạng thái Xử Lý</label>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
               <SelectValue placeholder="DONE" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="animate-fade-in">
               <SelectGroup>
                 {configData.statusOptions.map((option) => (
                   <SelectItem key={option.id} value={option.label}>
@@ -280,10 +281,10 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
         <div className="space-y-2">
           <label className="text-sm font-medium">Phối Hợp Liên Phòng Ban</label>
           <Select value={departmentCollaboration} onValueChange={setDepartmentCollaboration}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
               <SelectValue placeholder="Không" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="animate-fade-in">
               <SelectGroup>
                 {configData.departmentOptions.map((option) => (
                   <SelectItem key={option.id} value={option.label}>
@@ -298,10 +299,10 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
         <div className="space-y-2">
           <label className="text-sm font-medium">Kênh Tiếp Nhận</label>
           <Select value={channel} onValueChange={setChannel}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
               <SelectValue placeholder="Inbound" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="animate-fade-in">
               <SelectGroup>
                 {configData.channelOptions.map((option) => (
                   <SelectItem key={option.id} value={option.label}>
@@ -316,11 +317,16 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
 
       <div className="flex justify-end gap-2 pt-4">
         <Button 
-          className="bg-blue-800 hover:bg-blue-900" 
+          className="bg-blue-800 hover:bg-blue-900 shadow-md hover:shadow-lg transition-all" 
           onClick={handleSave}
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Đang lưu..." : "Lưu Lại"}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Đang lưu...
+            </>
+          ) : "Lưu Lại"}
         </Button>
       </div>
     </div>

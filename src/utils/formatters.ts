@@ -17,8 +17,17 @@ export const generateTicketSerial = (
   timeStart: string, 
   ticketCode: number
 ): string => {
-  // Get first 2 chars of service type (uppercase)
-  const servicePrefix = serviceType.substring(0, 2).toUpperCase();
+  // Extract the first letters of each word in serviceType
+  const words = serviceType.split(' ');
+  let servicePrefix = '';
+  
+  if (words.length >= 2) {
+    // Take first letter of first word and first letter of second word
+    servicePrefix = (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+  } else {
+    // If only one word, take first two letters
+    servicePrefix = serviceType.substring(0, 2).toUpperCase();
+  }
   
   // Format date as DDMMYYYY
   const date = new Date(timeStart);
