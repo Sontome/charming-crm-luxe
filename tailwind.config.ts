@@ -101,6 +101,11 @@ export default {
 				'slide-out': {
 					'0%': { transform: 'translateY(0)', opacity: '1' },
 					'100%': { transform: 'translateY(10px)', opacity: '0' }
+				},
+				'bounce': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'40%': { transform: 'translateY(-20px)' },
+					'60%': { transform: 'translateY(-10px)' }
 				}
 			},
 			animation: {
@@ -109,7 +114,11 @@ export default {
 				'fade-in': 'fade-in 0.3s ease-out',
 				'fade-out': 'fade-out 0.3s ease-out',
 				'slide-in': 'slide-in 0.3s ease-out',
-				'slide-out': 'slide-out 0.3s ease-out'
+				'slide-out': 'slide-out 0.3s ease-out',
+				'bounce': 'bounce 1s ease-in-out'
+			},
+			transitionTimingFunction: {
+				'bounce': 'cubic-bezier(0.68, -0.55, 0.27, 1.55)'
 			}
 		}
 	},

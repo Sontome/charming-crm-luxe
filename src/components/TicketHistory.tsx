@@ -30,7 +30,16 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [groupedInteractions, setGroupedInteractions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (customerCode) {
+      setIsVisible(true);
+    } else {
+      setIsVisible(false);
+    }
+  }, [customerCode]);
 
   useEffect(() => {
     const fetchInteractions = async () => {
@@ -181,7 +190,13 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div 
+      className={`space-y-6 transition-all duration-700 ease-bounce ${
+        isVisible 
+          ? 'opacity-100 transform translate-y-0' 
+          : 'opacity-0 transform translate-y-20'
+      }`}
+    >
       {/* Ticket history table */}
       {isLoading ? (
         <div className="flex justify-center items-center p-8">
@@ -189,7 +204,7 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
           <span className="ml-2">Đang tải dữ liệu...</span>
         </div>
       ) : (
-        <div className="transition-all duration-300 hover:shadow-md rounded-lg">
+        <div className="transition-all duration-500 hover:shadow-lg rounded-lg shadow-md">
           <TicketTable tickets={groupedInteractions} />
         </div>
       )}
