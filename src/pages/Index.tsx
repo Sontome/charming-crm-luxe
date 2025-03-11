@@ -232,6 +232,13 @@ export default function Index() {
         
         if (updateError) {
           console.error("Error updating lastActivity:", updateError);
+          toast({
+            variant: "destructive",
+            title: "Lỗi cập nhật",
+            description: "Không thể cập nhật thời gian hoạt động mới nhất của khách hàng",
+          });
+        } else {
+          console.log("Successfully updated lastActivity for customer:", customerData.customerCode);
         }
         
         setCustomer({
