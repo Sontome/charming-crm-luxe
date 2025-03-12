@@ -128,65 +128,57 @@ export default function TicketHistory({ customerCode, configData, onClear }: Tic
       const fetchInteractions = async () => {
         setIsLoading(true);
         
-        try {
-          const { data, error } = await supabase
-            .from("Interaction")
-            .select("*")
-            .eq("customerCode", customerCode)
-            .order("timeStart", { ascending: false });
+        const { data, error } = await supabase
+          .from("Interaction")
+          .select("*")
+          .eq("customerCode", customerCode)
+          .order("timeStart", { ascending: false });
 
-          if (error) {
-            console.error("Error refreshing interactions:", error);
-            return;
-          }
-          
-          if (data) {
-            setInteractions(data);
-            
-            // Update grouped interactions
-            const groupedByTicket: Record<string, Interaction[]> = {};
-            
-            data.forEach(interaction => {
-              if (!groupedByTicket[interaction.ticketSerial]) {
-                groupedByTicket[interaction.ticketSerial] = [];
-              }
-              groupedByTicket[interaction.ticketSerial].push(interaction);
-            });
-            
-            const tableData = Object.entries(groupedByTicket).map(([ticketSerial, tickets]) => {
-              tickets.sort((a, b) => 
-                new Date(b.timeStart).getTime() - new Date(a.timeStart).getTime()
-              );
-              
-              const latestTicket = tickets[0];
-              const combinedNotes = tickets.map(t => 
-                `${t.agentID}: ${t.noteInput}`
-              ).join("\n");
-              
-              return {
-                id: ticketSerial,
-                date: formatDate(latestTicket.timeStart).split(' ')[0],
-                time: formatDate(latestTicket.timeStart).split(' ')[1],
-                requestType: latestTicket.nhuCauKH,
-                content: latestTicket.chiTietNhuCau,
-                notes: combinedNotes,
-                agent: latestTicket.agentID,
-                status: latestTicket.status
-              };
-            });
-            
-            setGroupedInteractions(tableData);
-          }
-        } catch (error) {
+        if (error) {
           console.error("Error refreshing interactions:", error);
-          toast({
-            variant: "destructive",
-            title: "Lỗi",
-            description: "Không thể tải lịch sử tương tác"
-          });
-        } finally {
           setIsLoading(false);
+          return;
         }
+        
+        if (data) {
+          setInteractions(data);
+          
+          // Update grouped interactions
+          const groupedByTicket: Record<string, Interaction[]> = {};
+          
+          data.forEach(interaction => {
+            if (!groupedByTicket[interaction.ticketSerial]) {
+              groupedByTicket[interaction.ticketSerial] = [];
+            }
+            groupedByTicket[interaction.ticketSerial].push(interaction);
+          });
+          
+          const tableData = Object.entries(groupedByTicket).map(([ticketSerial, tickets]) => {
+            tickets.sort((a, b) => 
+              new Date(b.timeStart).getTime() - new Date(a.timeStart).getTime()
+            );
+            
+            const latestTicket = tickets[0];
+            const combinedNotes = tickets.map(t => 
+              `${t.agentID}: ${t.noteInput}`
+            ).join("\n");
+            
+            return {
+              id: ticketSerial,
+              date: formatDate(latestTicket.timeStart).split(' ')[0],
+              time: formatDate(latestTicket.timeStart).split(' ')[1],
+              requestType: latestTicket.nhuCauKH,
+              content: latestTicket.chiTietNhuCau,
+              notes: combinedNotes,
+              agent: latestTicket.agentID,
+              status: latestTicket.status
+            };
+          });
+          
+          setGroupedInteractions(tableData);
+        }
+        
+        setIsLoading(false);
       };
 
       fetchInteractions();
