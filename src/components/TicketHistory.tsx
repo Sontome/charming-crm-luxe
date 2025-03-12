@@ -80,7 +80,7 @@ export default function TicketHistory({
 
         if (error) throw error;
         
-        if (data) {
+        if (data && data.length > 0) {
           setInteractions(data);
           
           // Group interactions by ticketSerial
@@ -120,6 +120,10 @@ export default function TicketHistory({
           });
           
           setGroupedInteractions(tableData);
+        } else {
+          // If no interactions found, set empty arrays
+          setInteractions([]);
+          setGroupedInteractions([]);
         }
 
         try {
@@ -140,37 +144,49 @@ export default function TicketHistory({
             // Fetch the first interaction for each ticket to get nhuCauKH and chiTietNhuCau
             const interactionCodes = pendingTicketsData.map(ticket => ticket.interactionCodeStart);
             
-            const { data: interactionDetailsData, error: interactionDetailsError } = await supabase
-              .from("Interaction")
-              .select(`
-                interactionCode,
-                nhuCauKH,
-                chiTietNhuCau,
-                ticketSerial
-              `)
-              .in("interactionCode", interactionCodes);
+            if (interactionCodes.length > 0) {
+              const { data: interactionDetailsData, error: interactionDetailsError } = await supabase
+                .from("Interaction")
+                .select(`
+                  interactionCode,
+                  nhuCauKH,
+                  chiTietNhuCau,
+                  ticketSerial
+                `)
+                .in("interactionCode", interactionCodes);
 
-            if (interactionDetailsError) throw interactionDetailsError;
+              if (interactionDetailsError) throw interactionDetailsError;
 
-            if (interactionDetailsData) {
-              const formattedPendingTickets = pendingTicketsData.map(ticket => {
-                const matchingInteraction = interactionDetailsData.find(
-                  interaction => interaction.interactionCode === ticket.interactionCodeStart
-                );
+              if (interactionDetailsData && interactionDetailsData.length > 0) {
+                const formattedPendingTickets = pendingTicketsData.map(ticket => {
+                  const matchingInteraction = interactionDetailsData.find(
+                    interaction => interaction.interactionCode === ticket.interactionCodeStart
+                  );
+                  
+                  return {
+                    ticketSerial: ticket.ticketSerial,
+                    timeStart: ticket.timeStart,
+                    nhuCauKH: matchingInteraction?.nhuCauKH || "",
+                    chiTietNhuCau: matchingInteraction?.chiTietNhuCau || ""
+                  };
+                });
                 
-                return {
-                  ticketSerial: ticket.ticketSerial,
-                  timeStart: ticket.timeStart,
-                  nhuCauKH: matchingInteraction?.nhuCauKH || "",
-                  chiTietNhuCau: matchingInteraction?.chiTietNhuCau || ""
-                };
-              });
-              
-              setPendingTickets(formattedPendingTickets);
-              
-              // Notify parent component about pending tickets
+                setPendingTickets(formattedPendingTickets);
+                
+                // Notify parent component about pending tickets
+                if (onPendingTicketsFound) {
+                  onPendingTicketsFound(formattedPendingTickets);
+                }
+              } else {
+                setPendingTickets([]);
+                if (onPendingTicketsFound) {
+                  onPendingTicketsFound([]);
+                }
+              }
+            } else {
+              setPendingTickets([]);
               if (onPendingTicketsFound) {
-                onPendingTicketsFound(formattedPendingTickets);
+                onPendingTicketsFound([]);
               }
             }
           } else {
@@ -188,6 +204,8 @@ export default function TicketHistory({
         }
       } catch (error) {
         console.error("Error fetching interactions:", error);
+        setInteractions([]);
+        setGroupedInteractions([]);
         toast({
           variant: "destructive",
           title: "Lỗi",
@@ -219,7 +237,7 @@ export default function TicketHistory({
             return;
           }
           
-          if (data) {
+          if (data && data.length > 0) {
             setInteractions(data);
             
             // Update grouped interactions
@@ -255,6 +273,9 @@ export default function TicketHistory({
             });
             
             setGroupedInteractions(tableData);
+          } else {
+            setInteractions([]);
+            setGroupedInteractions([]);
           }
 
           try {
@@ -277,39 +298,51 @@ export default function TicketHistory({
               // Fetch the first interaction for each ticket to get nhuCauKH and chiTietNhuCau
               const interactionCodes = pendingTicketsData.map(ticket => ticket.interactionCodeStart);
               
-              const { data: interactionDetailsData, error: interactionDetailsError } = await supabase
-                .from("Interaction")
-                .select(`
-                  interactionCode,
-                  nhuCauKH,
-                  chiTietNhuCau,
-                  ticketSerial
-                `)
-                .in("interactionCode", interactionCodes);
+              if (interactionCodes.length > 0) {
+                const { data: interactionDetailsData, error: interactionDetailsError } = await supabase
+                  .from("Interaction")
+                  .select(`
+                    interactionCode,
+                    nhuCauKH,
+                    chiTietNhuCau,
+                    ticketSerial
+                  `)
+                  .in("interactionCode", interactionCodes);
 
-              if (interactionDetailsError) {
-                throw interactionDetailsError;
-              }
+                if (interactionDetailsError) {
+                  throw interactionDetailsError;
+                }
 
-              if (interactionDetailsData) {
-                const formattedPendingTickets = pendingTicketsData.map(ticket => {
-                  const matchingInteraction = interactionDetailsData.find(
-                    interaction => interaction.interactionCode === ticket.interactionCodeStart
-                  );
+                if (interactionDetailsData && interactionDetailsData.length > 0) {
+                  const formattedPendingTickets = pendingTicketsData.map(ticket => {
+                    const matchingInteraction = interactionDetailsData.find(
+                      interaction => interaction.interactionCode === ticket.interactionCodeStart
+                    );
+                    
+                    return {
+                      ticketSerial: ticket.ticketSerial,
+                      timeStart: ticket.timeStart,
+                      nhuCauKH: matchingInteraction?.nhuCauKH || "",
+                      chiTietNhuCau: matchingInteraction?.chiTietNhuCau || ""
+                    };
+                  });
                   
-                  return {
-                    ticketSerial: ticket.ticketSerial,
-                    timeStart: ticket.timeStart,
-                    nhuCauKH: matchingInteraction?.nhuCauKH || "",
-                    chiTietNhuCau: matchingInteraction?.chiTietNhuCau || ""
-                  };
-                });
-                
-                setPendingTickets(formattedPendingTickets);
-                
-                // Notify parent component about pending tickets
+                  setPendingTickets(formattedPendingTickets);
+                  
+                  // Notify parent component about pending tickets
+                  if (onPendingTicketsFound) {
+                    onPendingTicketsFound(formattedPendingTickets);
+                  }
+                } else {
+                  setPendingTickets([]);
+                  if (onPendingTicketsFound) {
+                    onPendingTicketsFound([]);
+                  }
+                }
+              } else {
+                setPendingTickets([]);
                 if (onPendingTicketsFound) {
-                  onPendingTicketsFound(formattedPendingTickets);
+                  onPendingTicketsFound([]);
                 }
               }
             } else {
@@ -327,6 +360,8 @@ export default function TicketHistory({
           }
         } catch (error) {
           console.error("Error during refresh:", error);
+          setInteractions([]);
+          setGroupedInteractions([]);
         } finally {
           setIsLoading(false);
         }
@@ -354,9 +389,13 @@ export default function TicketHistory({
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-2">Đang tải dữ liệu...</span>
         </div>
-      ) : (
+      ) : groupedInteractions.length > 0 ? (
         <div className="transition-all duration-500 hover:shadow-lg rounded-lg shadow-md">
           <TicketTable tickets={groupedInteractions} />
+        </div>
+      ) : (
+        <div className="flex justify-center items-center p-8 bg-card rounded-lg shadow-md">
+          <span>Không có lịch sử tương tác</span>
         </div>
       )}
       
