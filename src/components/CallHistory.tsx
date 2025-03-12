@@ -103,7 +103,7 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
         .from("Customer")
         .select("customerPhone")
         .eq("customerCode", customerCode)
-        .single();
+        .maybeSingle();
       
       if (error) {
         throw error;

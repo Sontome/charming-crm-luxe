@@ -282,17 +282,6 @@ export default function Index() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <img 
-            src="https://sso.tima.vn/images/logo.png" 
-            alt="Tima Logo" 
-            className="h-10 mr-4"
-          />
-          <h1 className="text-2xl font-bold">Contact Center</h1>
-        </div>
-      </div>
-      
       <div className="flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-1/3 lg:w-1/4 space-y-6">
           {searchedPhoneNumber === "0978264656" && (
