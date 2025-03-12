@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
@@ -213,7 +214,7 @@ export default function Index() {
         .from("Customer")
         .select("*")
         .eq("customerPhone", formattedPhone)
-        .single();
+        .maybeSingle();
       
       const now = new Date().toISOString();
       
@@ -241,32 +242,66 @@ export default function Index() {
         } else {
           throw error;
         }
+      } else if (customerData) {
+        try {
+          const { error: updateError } = await supabase
+            .from("Customer")
+            .update({ lastActivity: now })
+            .eq("customerCode", customerData.customerCode);
+          
+          if (updateError) {
+            console.error("Error updating lastActivity:", updateError);
+            toast({
+              variant: "destructive",
+              title: "Lỗi cập nhật",
+              description: "Không thể cập nhật thời gian hoạt động mới nhất của khách hàng",
+            });
+          } else {
+            console.log("Successfully updated lastActivity for customer:", customerData.customerCode);
+          }
+          
+          setCustomer({
+            ...customerData,
+            lastActivity: now
+          });
+          
+          toast({
+            title: "Khách hàng được tìm thấy",
+            description: "Thông tin khách hàng đã được hiển thị",
+          });
+        } catch (updateError) {
+          console.error("Error in update operation:", updateError);
+        }
       } else {
-        const { error: updateError } = await supabase
-          .from("Customer")
-          .update({ lastActivity: now })
-          .eq("customerCode", customerData.customerCode);
-        
-        if (updateError) {
-          console.error("Error updating lastActivity:", updateError);
+        // If no customer data but also no error, create a new customer
+        try {
+          const { data: newCustomer, error: createError } = await supabase
+            .from("Customer")
+            .insert({
+              customerPhone: formattedPhone,
+              lastActivity: now,
+              firstActivity: now
+            })
+            .select()
+            .single();
+          
+          if (createError) {
+            throw createError;
+          }
+          
+          setCustomer(newCustomer);
+          toast({
+            title: "Khách hàng mới",
+            description: "Đã tạo hồ sơ cho khách hàng mới",
+          });
+        } catch (createError) {
+          console.error("Error creating new customer:", createError);
           toast({
             variant: "destructive",
-            title: "Lỗi cập nhật",
-            description: "Không thể cập nhật thời gian hoạt động mới nhất của khách hàng",
+            title: "Lỗi",
+            description: "Không thể tạo hồ sơ khách hàng mới",
           });
-        } else {
-          console.log("Successfully updated lastActivity for customer:", customerData.customerCode);
         }
-        
-        setCustomer({
-          ...customerData,
-          lastActivity: now
-        });
-        
-        toast({
-          title: "Khách hàng được tìm thấy",
-          description: "Thông tin khách hàng đã được hiển thị",
-        });
       }
     } catch (error) {
       console.error("Search error:", error);

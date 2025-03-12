@@ -122,148 +122,21 @@ export default function TicketHistory({
           setGroupedInteractions(tableData);
         }
 
-        // Fetch pending tickets for this customer
-        const { data: pendingTicketsData, error: pendingTicketsError } = await supabase
-          .from("Ticket")
-          .select(`
-            ticketSerial,
-            timeStart,
-            interactionCodeStart
-          `)
-          .eq("customerCode", customerCode)
-          .eq("status", "PENDING");
-
-        if (pendingTicketsError) throw pendingTicketsError;
-
-        if (pendingTicketsData && pendingTicketsData.length > 0) {
-          // Fetch the first interaction for each ticket to get nhuCauKH and chiTietNhuCau
-          const interactionCodes = pendingTicketsData.map(ticket => ticket.interactionCodeStart);
-          
-          const { data: interactionDetailsData, error: interactionDetailsError } = await supabase
-            .from("Interaction")
+        try {
+          // Fetch pending tickets for this customer
+          const { data: pendingTicketsData, error: pendingTicketsError } = await supabase
+            .from("Ticket")
             .select(`
-              interactionCode,
-              nhuCauKH,
-              chiTietNhuCau,
-              ticketSerial
+              ticketSerial,
+              timeStart,
+              interactionCodeStart
             `)
-            .in("interactionCode", interactionCodes);
+            .eq("customerCode", customerCode)
+            .eq("status", "PENDING");
 
-          if (interactionDetailsError) throw interactionDetailsError;
+          if (pendingTicketsError) throw pendingTicketsError;
 
-          if (interactionDetailsData) {
-            const formattedPendingTickets = pendingTicketsData.map(ticket => {
-              const matchingInteraction = interactionDetailsData.find(
-                interaction => interaction.interactionCode === ticket.interactionCodeStart
-              );
-              
-              return {
-                ticketSerial: ticket.ticketSerial,
-                timeStart: ticket.timeStart,
-                nhuCauKH: matchingInteraction?.nhuCauKH || "",
-                chiTietNhuCau: matchingInteraction?.chiTietNhuCau || ""
-              };
-            });
-            
-            setPendingTickets(formattedPendingTickets);
-            
-            // Notify parent component about pending tickets
-            if (onPendingTicketsFound) {
-              onPendingTicketsFound(formattedPendingTickets);
-            }
-          }
-        } else {
-          setPendingTickets([]);
-          if (onPendingTicketsFound) {
-            onPendingTicketsFound([]);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching interactions:", error);
-        toast({
-          variant: "destructive",
-          title: "Lỗi",
-          description: "Không thể tải lịch sử tương tác"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchInteractions();
-  }, [customerCode, toast, onPendingTicketsFound]);
-
-  const handleSaveSuccess = () => {
-    // Refresh the interactions list
-    if (customerCode) {
-      const fetchInteractions = async () => {
-        setIsLoading(true);
-        
-        const { data, error } = await supabase
-          .from("Interaction")
-          .select("*")
-          .eq("customerCode", customerCode)
-          .order("timeStart", { ascending: false });
-
-        if (error) {
-          console.error("Error refreshing interactions:", error);
-          setIsLoading(false);
-          return;
-        }
-        
-        if (data) {
-          setInteractions(data);
-          
-          // Update grouped interactions
-          const groupedByTicket: Record<string, Interaction[]> = {};
-          
-          data.forEach(interaction => {
-            if (!groupedByTicket[interaction.ticketSerial]) {
-              groupedByTicket[interaction.ticketSerial] = [];
-            }
-            groupedByTicket[interaction.ticketSerial].push(interaction);
-          });
-          
-          const tableData = Object.entries(groupedByTicket).map(([ticketSerial, tickets]) => {
-            tickets.sort((a, b) => 
-              new Date(b.timeStart).getTime() - new Date(a.timeStart).getTime()
-            );
-            
-            const latestTicket = tickets[0];
-            const combinedNotes = tickets.map(t => 
-              `${t.agentID}: ${t.noteInput}`
-            ).join("\n");
-            
-            return {
-              id: ticketSerial,
-              date: formatDate(latestTicket.timeStart).split(' ')[0],
-              time: formatDate(latestTicket.timeStart).split(' ')[1],
-              requestType: latestTicket.nhuCauKH,
-              content: latestTicket.chiTietNhuCau,
-              notes: combinedNotes,
-              agent: latestTicket.agentID,
-              status: latestTicket.status
-            };
-          });
-          
-          setGroupedInteractions(tableData);
-        }
-
-        // Refresh pending tickets
-        const { data: pendingTicketsData, error: pendingTicketsError } = await supabase
-          .from("Ticket")
-          .select(`
-            ticketSerial,
-            timeStart,
-            interactionCodeStart
-          `)
-          .eq("customerCode", customerCode)
-          .eq("status", "PENDING");
-
-        if (pendingTicketsError) {
-          console.error("Error refreshing pending tickets:", pendingTicketsError);
-        } else if (pendingTicketsData) {
-          if (pendingTicketsData.length > 0) {
+          if (pendingTicketsData && pendingTicketsData.length > 0) {
             // Fetch the first interaction for each ticket to get nhuCauKH and chiTietNhuCau
             const interactionCodes = pendingTicketsData.map(ticket => ticket.interactionCodeStart);
             
@@ -277,9 +150,9 @@ export default function TicketHistory({
               `)
               .in("interactionCode", interactionCodes);
 
-            if (interactionDetailsError) {
-              console.error("Error fetching interaction details:", interactionDetailsError);
-            } else if (interactionDetailsData) {
+            if (interactionDetailsError) throw interactionDetailsError;
+
+            if (interactionDetailsData) {
               const formattedPendingTickets = pendingTicketsData.map(ticket => {
                 const matchingInteraction = interactionDetailsData.find(
                   interaction => interaction.interactionCode === ticket.interactionCodeStart
@@ -306,9 +179,157 @@ export default function TicketHistory({
               onPendingTicketsFound([]);
             }
           }
+        } catch (error) {
+          console.error("Error fetching pending tickets:", error);
+          setPendingTickets([]);
+          if (onPendingTicketsFound) {
+            onPendingTicketsFound([]);
+          }
         }
-        
+      } catch (error) {
+        console.error("Error fetching interactions:", error);
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: "Không thể tải lịch sử tương tác"
+        });
+      } finally {
         setIsLoading(false);
+      }
+    };
+
+    fetchInteractions();
+  }, [customerCode, toast, onPendingTicketsFound]);
+
+  const handleSaveSuccess = () => {
+    // Refresh the interactions list
+    if (customerCode) {
+      const fetchInteractions = async () => {
+        setIsLoading(true);
+        
+        try {
+          const { data, error } = await supabase
+            .from("Interaction")
+            .select("*")
+            .eq("customerCode", customerCode)
+            .order("timeStart", { ascending: false });
+
+          if (error) {
+            console.error("Error refreshing interactions:", error);
+            return;
+          }
+          
+          if (data) {
+            setInteractions(data);
+            
+            // Update grouped interactions
+            const groupedByTicket: Record<string, Interaction[]> = {};
+            
+            data.forEach(interaction => {
+              if (!groupedByTicket[interaction.ticketSerial]) {
+                groupedByTicket[interaction.ticketSerial] = [];
+              }
+              groupedByTicket[interaction.ticketSerial].push(interaction);
+            });
+            
+            const tableData = Object.entries(groupedByTicket).map(([ticketSerial, tickets]) => {
+              tickets.sort((a, b) => 
+                new Date(b.timeStart).getTime() - new Date(a.timeStart).getTime()
+              );
+              
+              const latestTicket = tickets[0];
+              const combinedNotes = tickets.map(t => 
+                `${t.agentID}: ${t.noteInput}`
+              ).join("\n");
+              
+              return {
+                id: ticketSerial,
+                date: formatDate(latestTicket.timeStart).split(' ')[0],
+                time: formatDate(latestTicket.timeStart).split(' ')[1],
+                requestType: latestTicket.nhuCauKH,
+                content: latestTicket.chiTietNhuCau,
+                notes: combinedNotes,
+                agent: latestTicket.agentID,
+                status: latestTicket.status
+              };
+            });
+            
+            setGroupedInteractions(tableData);
+          }
+
+          try {
+            // Refresh pending tickets
+            const { data: pendingTicketsData, error: pendingTicketsError } = await supabase
+              .from("Ticket")
+              .select(`
+                ticketSerial,
+                timeStart,
+                interactionCodeStart
+              `)
+              .eq("customerCode", customerCode)
+              .eq("status", "PENDING");
+
+            if (pendingTicketsError) {
+              throw pendingTicketsError;
+            }
+
+            if (pendingTicketsData && pendingTicketsData.length > 0) {
+              // Fetch the first interaction for each ticket to get nhuCauKH and chiTietNhuCau
+              const interactionCodes = pendingTicketsData.map(ticket => ticket.interactionCodeStart);
+              
+              const { data: interactionDetailsData, error: interactionDetailsError } = await supabase
+                .from("Interaction")
+                .select(`
+                  interactionCode,
+                  nhuCauKH,
+                  chiTietNhuCau,
+                  ticketSerial
+                `)
+                .in("interactionCode", interactionCodes);
+
+              if (interactionDetailsError) {
+                throw interactionDetailsError;
+              }
+
+              if (interactionDetailsData) {
+                const formattedPendingTickets = pendingTicketsData.map(ticket => {
+                  const matchingInteraction = interactionDetailsData.find(
+                    interaction => interaction.interactionCode === ticket.interactionCodeStart
+                  );
+                  
+                  return {
+                    ticketSerial: ticket.ticketSerial,
+                    timeStart: ticket.timeStart,
+                    nhuCauKH: matchingInteraction?.nhuCauKH || "",
+                    chiTietNhuCau: matchingInteraction?.chiTietNhuCau || ""
+                  };
+                });
+                
+                setPendingTickets(formattedPendingTickets);
+                
+                // Notify parent component about pending tickets
+                if (onPendingTicketsFound) {
+                  onPendingTicketsFound(formattedPendingTickets);
+                }
+              }
+            } else {
+              setPendingTickets([]);
+              if (onPendingTicketsFound) {
+                onPendingTicketsFound([]);
+              }
+            }
+          } catch (error) {
+            console.error("Error refreshing pending tickets:", error);
+            setPendingTickets([]);
+            if (onPendingTicketsFound) {
+              onPendingTicketsFound([]);
+            }
+          }
+        } catch (error) {
+          console.error("Error during refresh:", error);
+        } finally {
+          setIsLoading(false);
+        }
       };
 
       fetchInteractions();
