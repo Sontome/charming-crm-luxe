@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { 
   Table,
@@ -21,6 +22,7 @@ interface RecentCall {
   status: string;
   interactionCodeStart: number;
   ticketSerial: string;
+  chiTietNhuCau: string;
 }
 
 interface CallHistoryProps {
@@ -37,6 +39,7 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
     const fetchRecentCalls = async () => {
       try {
         // Fetch recent calls with status PENDING from Ticket table
+        // Join with Interaction table to get chiTietNhuCau
         const { data, error } = await supabase
           .from("Ticket")
           .select(`
@@ -44,7 +47,8 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
             customerCode,
             status,
             interactionCodeStart,
-            ticketSerial
+            ticketSerial,
+            Interaction:interactionCodeStart (chiTietNhuCau)
           `)
           .eq("status", "PENDING")
           .order("timeStart", { ascending: false })
@@ -53,7 +57,17 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
         if (error) throw error;
 
         if (data) {
-          setRecentCalls(data);
+          // Transform data to match our component's expected format
+          const transformedData = data.map(item => ({
+            timeStart: item.timeStart,
+            customerCode: item.customerCode,
+            status: item.status,
+            interactionCodeStart: item.interactionCodeStart,
+            ticketSerial: item.ticketSerial,
+            chiTietNhuCau: item.Interaction?.chiTietNhuCau || ""
+          }));
+          
+          setRecentCalls(transformedData);
         }
       } catch (error) {
         console.error("Error fetching recent calls:", error);
@@ -124,7 +138,7 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
               <TableHead>Thời gian</TableHead>
               <TableHead>Mã khách hàng</TableHead>
               <TableHead>Trạng thái</TableHead>
-              <TableHead>Mã tương tác</TableHead>
+              <TableHead>Chi Tiết Nhu Cầu</TableHead>
               <TableHead>Mã Ticket</TableHead>
               <TableHead>Tác vụ</TableHead>
             </TableRow>
@@ -162,7 +176,7 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
                         {call.status}
                       </span>
                     </TableCell>
-                    <TableCell>{call.interactionCodeStart}</TableCell>
+                    <TableCell>{call.chiTietNhuCau}</TableCell>
                     <TableCell>{call.ticketSerial}</TableCell>
                     <TableCell>
                       <Button 
