@@ -7,6 +7,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { formatDate } from "@/utils/formatters";
+import { cn } from "@/lib/utils";
 
 interface Contact {
   customerName?: string;
@@ -19,15 +20,16 @@ interface Contact {
 
 interface ContactDetailsProps {
   contact: Contact | null;
+  className?: string;
 }
 
-export default function ContactDetails({ contact }: ContactDetailsProps) {
+export default function ContactDetails({ contact, className }: ContactDetailsProps) {
   if (!contact) {
     return null;
   }
 
   return (
-    <Card className="animate-fade-in">
+    <Card className={cn("animate-fade-in", className)}>
       <CardHeader className="flex flex-row items-center gap-4 pb-2 bg-muted/30">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500">
           <User className="h-6 w-6" />
