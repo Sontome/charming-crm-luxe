@@ -40,9 +40,9 @@ export default function TicketForm({
   const [serviceType, setServiceType] = useState("");
   const [detailOptions, setDetailOptions] = useState<{id: string, label: string}[]>([]);
   const [ticketDetail, setTicketDetail] = useState("");
-  const [status, setStatus] = useState("");
-  const [channel, setChannel] = useState("");
-  const [departmentCollaboration, setDepartmentCollaboration] = useState("");
+  const [status, setStatus] = useState("DONE");
+  const [channel, setChannel] = useState("Inbound");
+  const [departmentCollaboration, setDepartmentCollaboration] = useState("Không");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPendingTicket, setSelectedPendingTicket] = useState("");
 
@@ -57,25 +57,57 @@ export default function TicketForm({
     }
   }, [requestType, configData.detailOptionsMap]);
 
-  // Removed auto-selection of default values when config data loads
-  // This was causing the repetitive rendering issue
+  // Set default values when config data loads
+  useEffect(() => {
+    if (configData.statusOptions.length > 0) {
+      const doneOption = configData.statusOptions.find(option => option.label === "DONE");
+      if (doneOption) {
+        setStatus(doneOption.label);
+      }
+    }
+    
+    if (configData.channelOptions.length > 0) {
+      const inboundOption = configData.channelOptions.find(option => option.label === "Inbound");
+      if (inboundOption) {
+        setChannel(inboundOption.label);
+      }
+    }
+    
+    if (configData.departmentOptions.length > 0) {
+      const noOption = configData.departmentOptions.find(option => option.label === "Không");
+      if (noOption) {
+        setDepartmentCollaboration(noOption.label);
+      }
+    }
+  }, [configData]);
 
-  // Removed auto-selection of pending tickets
-  // This was also causing issues with the SelectItem component
+  // Automatically select the first pending ticket when available
+  useEffect(() => {
+    if (pendingTickets && pendingTickets.length > 0 && !selectedPendingTicket) {
+      setSelectedPendingTicket(pendingTickets[0].ticketSerial);
+      
+      // Also set the request type and ticket detail based on the selected ticket
+      const selectedTicket = pendingTickets[0];
+      if (selectedTicket.nhuCauKH) {
+        setRequestType(selectedTicket.nhuCauKH);
+      }
+      if (selectedTicket.chiTietNhuCau) {
+        setTicketDetail(selectedTicket.chiTietNhuCau);
+      }
+    }
+  }, [pendingTickets, selectedPendingTicket]);
 
   const handlePendingTicketChange = (ticketSerial: string) => {
     setSelectedPendingTicket(ticketSerial);
     
-    // Update form values based on the selected ticket only if a valid ticket is selected
-    if (ticketSerial) {
-      const selectedTicket = pendingTickets?.find(ticket => ticket.ticketSerial === ticketSerial);
-      if (selectedTicket) {
-        if (selectedTicket.nhuCauKH) {
-          setRequestType(selectedTicket.nhuCauKH);
-        }
-        if (selectedTicket.chiTietNhuCau) {
-          setTicketDetail(selectedTicket.chiTietNhuCau);
-        }
+    // Update form values based on the selected ticket
+    const selectedTicket = pendingTickets?.find(ticket => ticket.ticketSerial === ticketSerial);
+    if (selectedTicket) {
+      if (selectedTicket.nhuCauKH) {
+        setRequestType(selectedTicket.nhuCauKH);
+      }
+      if (selectedTicket.chiTietNhuCau) {
+        setTicketDetail(selectedTicket.chiTietNhuCau);
       }
     }
   };
@@ -109,12 +141,9 @@ export default function TicketForm({
         .from("Customer")
         .select("lastActivity")
         .eq("customerCode", customerCode)
-        .maybeSingle();
+        .single();
       
       if (customerError) throw customerError;
-      if (!customerData) {
-        throw new Error("Không tìm thấy thông tin khách hàng");
-      }
       
       const timeStart = customerData.lastActivity;
       
@@ -175,7 +204,7 @@ export default function TicketForm({
           .select("ticketCode")
           .order("ticketCode", { ascending: false })
           .limit(1)
-          .maybeSingle();
+          .single();
         
         const nextTicketCode = maxTicketData ? maxTicketData.ticketCode + 1 : 1;
         
@@ -235,9 +264,9 @@ export default function TicketForm({
       setRequestType("");
       setServiceType("");
       setTicketDetail("");
-      setStatus("");
-      setChannel("");
-      setDepartmentCollaboration("");
+      setStatus("DONE");
+      setChannel("Inbound");
+      setDepartmentCollaboration("Không");
       setSelectedPendingTicket("");
 
       // Call parent onSave if provided
@@ -349,7 +378,7 @@ export default function TicketForm({
           <label className="text-sm font-medium">Trạng thái Xử Lý</label>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
-              <SelectValue placeholder="Chọn trạng thái" />
+              <SelectValue placeholder="DONE" />
             </SelectTrigger>
             <SelectContent className="animate-fade-in">
               <SelectGroup>
@@ -367,7 +396,7 @@ export default function TicketForm({
           <label className="text-sm font-medium">Phối Hợp Liên Phòng Ban</label>
           <Select value={departmentCollaboration} onValueChange={setDepartmentCollaboration}>
             <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
-              <SelectValue placeholder="Chọn phòng ban" />
+              <SelectValue placeholder="Không" />
             </SelectTrigger>
             <SelectContent className="animate-fade-in">
               <SelectGroup>
@@ -385,7 +414,7 @@ export default function TicketForm({
           <label className="text-sm font-medium">Kênh Tiếp Nhận</label>
           <Select value={channel} onValueChange={setChannel}>
             <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
-              <SelectValue placeholder="Chọn kênh tiếp nhận" />
+              <SelectValue placeholder="Inbound" />
             </SelectTrigger>
             <SelectContent className="animate-fade-in">
               <SelectGroup>

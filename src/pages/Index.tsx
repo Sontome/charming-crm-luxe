@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
@@ -214,7 +213,7 @@ export default function Index() {
         .from("Customer")
         .select("*")
         .eq("customerPhone", formattedPhone)
-        .maybeSingle();
+        .single();
       
       const now = new Date().toISOString();
       
@@ -242,66 +241,32 @@ export default function Index() {
         } else {
           throw error;
         }
-      } else if (customerData) {
-        try {
-          const { error: updateError } = await supabase
-            .from("Customer")
-            .update({ lastActivity: now })
-            .eq("customerCode", customerData.customerCode);
-          
-          if (updateError) {
-            console.error("Error updating lastActivity:", updateError);
-            toast({
-              variant: "destructive",
-              title: "Lỗi cập nhật",
-              description: "Không thể cập nhật thời gian hoạt động mới nhất của khách hàng",
-            });
-          } else {
-            console.log("Successfully updated lastActivity for customer:", customerData.customerCode);
-          }
-          
-          setCustomer({
-            ...customerData,
-            lastActivity: now
-          });
-          
-          toast({
-            title: "Khách hàng được tìm thấy",
-            description: "Thông tin khách hàng đã được hiển thị",
-          });
-        } catch (updateError) {
-          console.error("Error in update operation:", updateError);
-        }
       } else {
-        // If no customer data but also no error, create a new customer
-        try {
-          const { data: newCustomer, error: createError } = await supabase
-            .from("Customer")
-            .insert({
-              customerPhone: formattedPhone,
-              lastActivity: now,
-              firstActivity: now
-            })
-            .select()
-            .single();
-          
-          if (createError) {
-            throw createError;
-          }
-          
-          setCustomer(newCustomer);
-          toast({
-            title: "Khách hàng mới",
-            description: "Đã tạo hồ sơ cho khách hàng mới",
-          });
-        } catch (createError) {
-          console.error("Error creating new customer:", createError);
+        const { error: updateError } = await supabase
+          .from("Customer")
+          .update({ lastActivity: now })
+          .eq("customerCode", customerData.customerCode);
+        
+        if (updateError) {
+          console.error("Error updating lastActivity:", updateError);
           toast({
             variant: "destructive",
-            title: "Lỗi",
-            description: "Không thể tạo hồ sơ khách hàng mới",
+            title: "Lỗi cập nhật",
+            description: "Không thể cập nhật thời gian hoạt động mới nhất của khách hàng",
           });
+        } else {
+          console.log("Successfully updated lastActivity for customer:", customerData.customerCode);
         }
+        
+        setCustomer({
+          ...customerData,
+          lastActivity: now
+        });
+        
+        toast({
+          title: "Khách hàng được tìm thấy",
+          description: "Thông tin khách hàng đã được hiển thị",
+        });
       }
     } catch (error) {
       console.error("Search error:", error);
@@ -317,6 +282,17 @@ export default function Index() {
 
   return (
     <div className="space-y-8">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <img 
+            src="https://sso.tima.vn/images/logo.png" 
+            alt="Tima Logo" 
+            className="h-10 mr-4"
+          />
+          <h1 className="text-2xl font-bold">Contact Center</h1>
+        </div>
+      </div>
+      
       <div className="flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-1/3 lg:w-1/4 space-y-6">
           {searchedPhoneNumber === "0978264656" && (
