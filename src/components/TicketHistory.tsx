@@ -20,31 +20,17 @@ interface Interaction {
   status: string;
 }
 
-export interface PendingTicket {
-  ticketSerial: string;
-  nhuCauKH: string;
-  chiTietNhuCau: string;
-  timeStart: string;
-}
-
 interface TicketHistoryProps {
   customerCode: number;
   configData: ConfigData;
   onClear?: () => void;
-  onPendingTicketsFound?: (tickets: PendingTicket[]) => void;
 }
 
-export default function TicketHistory({ 
-  customerCode, 
-  configData, 
-  onClear,
-  onPendingTicketsFound 
-}: TicketHistoryProps) {
+export default function TicketHistory({ customerCode, configData, onClear }: TicketHistoryProps) {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [groupedInteractions, setGroupedInteractions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [pendingTickets, setPendingTickets] = useState<PendingTicket[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -121,63 +107,6 @@ export default function TicketHistory({
           
           setGroupedInteractions(tableData);
         }
-
-        // Fetch pending tickets for this customer
-        const { data: pendingTicketsData, error: pendingTicketsError } = await supabase
-          .from("Ticket")
-          .select(`
-            ticketSerial,
-            timeStart,
-            interactionCodeStart
-          `)
-          .eq("customerCode", customerCode)
-          .eq("status", "PENDING");
-
-        if (pendingTicketsError) throw pendingTicketsError;
-
-        if (pendingTicketsData && pendingTicketsData.length > 0) {
-          // Fetch the first interaction for each ticket to get nhuCauKH and chiTietNhuCau
-          const interactionCodes = pendingTicketsData.map(ticket => ticket.interactionCodeStart);
-          
-          const { data: interactionDetailsData, error: interactionDetailsError } = await supabase
-            .from("Interaction")
-            .select(`
-              interactionCode,
-              nhuCauKH,
-              chiTietNhuCau,
-              ticketSerial
-            `)
-            .in("interactionCode", interactionCodes);
-
-          if (interactionDetailsError) throw interactionDetailsError;
-
-          if (interactionDetailsData) {
-            const formattedPendingTickets = pendingTicketsData.map(ticket => {
-              const matchingInteraction = interactionDetailsData.find(
-                interaction => interaction.interactionCode === ticket.interactionCodeStart
-              );
-              
-              return {
-                ticketSerial: ticket.ticketSerial,
-                timeStart: ticket.timeStart,
-                nhuCauKH: matchingInteraction?.nhuCauKH || "",
-                chiTietNhuCau: matchingInteraction?.chiTietNhuCau || ""
-              };
-            });
-            
-            setPendingTickets(formattedPendingTickets);
-            
-            // Notify parent component about pending tickets
-            if (onPendingTicketsFound) {
-              onPendingTicketsFound(formattedPendingTickets);
-            }
-          }
-        } else {
-          setPendingTickets([]);
-          if (onPendingTicketsFound) {
-            onPendingTicketsFound([]);
-          }
-        }
       } catch (error) {
         console.error("Error fetching interactions:", error);
         toast({
@@ -191,7 +120,7 @@ export default function TicketHistory({
     };
 
     fetchInteractions();
-  }, [customerCode, toast, onPendingTicketsFound]);
+  }, [customerCode, toast]);
 
   const handleSaveSuccess = () => {
     // Refresh the interactions list
@@ -248,65 +177,6 @@ export default function TicketHistory({
           
           setGroupedInteractions(tableData);
         }
-
-        // Refresh pending tickets
-        const { data: pendingTicketsData, error: pendingTicketsError } = await supabase
-          .from("Ticket")
-          .select(`
-            ticketSerial,
-            timeStart,
-            interactionCodeStart
-          `)
-          .eq("customerCode", customerCode)
-          .eq("status", "PENDING");
-
-        if (pendingTicketsError) {
-          console.error("Error refreshing pending tickets:", pendingTicketsError);
-        } else if (pendingTicketsData) {
-          if (pendingTicketsData.length > 0) {
-            // Fetch the first interaction for each ticket to get nhuCauKH and chiTietNhuCau
-            const interactionCodes = pendingTicketsData.map(ticket => ticket.interactionCodeStart);
-            
-            const { data: interactionDetailsData, error: interactionDetailsError } = await supabase
-              .from("Interaction")
-              .select(`
-                interactionCode,
-                nhuCauKH,
-                chiTietNhuCau,
-                ticketSerial
-              `)
-              .in("interactionCode", interactionCodes);
-
-            if (interactionDetailsError) {
-              console.error("Error fetching interaction details:", interactionDetailsError);
-            } else if (interactionDetailsData) {
-              const formattedPendingTickets = pendingTicketsData.map(ticket => {
-                const matchingInteraction = interactionDetailsData.find(
-                  interaction => interaction.interactionCode === ticket.interactionCodeStart
-                );
-                
-                return {
-                  ticketSerial: ticket.ticketSerial,
-                  timeStart: ticket.timeStart,
-                  nhuCauKH: matchingInteraction?.nhuCauKH || "",
-                  chiTietNhuCau: matchingInteraction?.chiTietNhuCau || ""
-                };
-              });
-              
-              setPendingTickets(formattedPendingTickets);
-              
-              // Notify parent component about pending tickets
-              if (onPendingTicketsFound) {
-                onPendingTicketsFound(formattedPendingTickets);
-              }
-            }
-          } else {
-            setPendingTickets([]);
-            if (onPendingTicketsFound) {
-              onPendingTicketsFound([]);
-            }
-          }
-        }
         
         setIsLoading(false);
       };
@@ -345,7 +215,6 @@ export default function TicketHistory({
         configData={configData} 
         onSave={handleSaveSuccess}
         onClear={handleClearAll}
-        pendingTickets={pendingTickets}
       />
     </div>
   );

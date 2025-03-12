@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import CallHistory from "@/components/CallHistory";
 import ContactDetails from "@/components/ContactDetails";
-import TicketHistory, { PendingTicket } from "@/components/TicketHistory";
+import TicketHistory from "@/components/TicketHistory";
 import MissedCallInfo from "@/components/MissedCallInfo";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,7 +49,6 @@ export default function Index() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [searchedPhoneNumber, setSearchedPhoneNumber] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
-  const [pendingTickets, setPendingTickets] = useState<PendingTicket[]>([]);
   const [configData, setConfigData] = useState<ConfigData>({
     serviceTypes: [],
     requestTypes: [],
@@ -193,14 +192,9 @@ export default function Index() {
     }
   }, [searchParams]);
 
-  const handlePendingTicketsFound = (tickets: PendingTicket[]) => {
-    setPendingTickets(tickets);
-  };
-
   const handleClearAll = () => {
     setCustomer(null);
     setSearchedPhoneNumber("");
-    setPendingTickets([]);
   };
 
   const handleSearch = async (phoneNumber: string) => {
@@ -282,34 +276,18 @@ export default function Index() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <img 
-            src="https://sso.tima.vn/images/logo.png" 
-            alt="Tima Logo" 
-            className="h-10 mr-4"
-          />
-          <h1 className="text-2xl font-bold">Contact Center</h1>
-        </div>
-      </div>
-      
       <div className="flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-1/3 lg:w-1/4 space-y-6">
           {searchedPhoneNumber === "0978264656" && (
             <MissedCallInfo phoneNumber={searchedPhoneNumber} />
           )}
           
-          <div className="bg-card rounded-lg p-4 border shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div className="bg-card rounded-lg p-4 border shadow-sm">
             <h2 className="text-lg font-medium mb-4">Tìm kiếm khách hàng</h2>
             <SearchBar onSearch={handleSearch} isLoading={isSearching} />
           </div>
           
-          {customer && (
-            <ContactDetails 
-              contact={customer} 
-              className="hover:shadow-md transition-shadow duration-300" 
-            />
-          )}
+          {customer && <ContactDetails contact={customer} />}
         </div>
         
         <div className="w-full md:w-2/3 lg:w-3/4 space-y-6">
@@ -319,7 +297,6 @@ export default function Index() {
               customerCode={customer.customerCode} 
               configData={configData} 
               onClear={handleClearAll}
-              onPendingTicketsFound={handlePendingTicketsFound}
             />
           )}
         </div>

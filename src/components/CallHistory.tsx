@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { 
   Table,
@@ -20,7 +19,7 @@ interface RecentCall {
   timeStart: string;
   customerCode: number;
   status: string;
-  chiTietNhuCau: string;
+  interactionCodeStart: number;
   ticketSerial: string;
 }
 
@@ -37,52 +36,24 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
   useEffect(() => {
     const fetchRecentCalls = async () => {
       try {
-        // Fetch recent calls with status PENDING from Ticket table and join with Interaction to get chiTietNhuCau
-        const { data: ticketData, error: ticketError } = await supabase
+        // Fetch recent calls with status PENDING from Ticket table
+        const { data, error } = await supabase
           .from("Ticket")
           .select(`
             timeStart,
             customerCode,
             status,
-            ticketSerial,
-            interactionCodeStart
+            interactionCodeStart,
+            ticketSerial
           `)
           .eq("status", "PENDING")
           .order("timeStart", { ascending: false })
           .limit(10);
 
-        if (ticketError) throw ticketError;
+        if (error) throw error;
 
-        if (ticketData && ticketData.length > 0) {
-          // Get all interactionCodes to fetch details
-          const interactionCodes = ticketData.map(ticket => ticket.interactionCodeStart);
-          
-          // Fetch detailed interaction information
-          const { data: interactionData, error: interactionError } = await supabase
-            .from("Interaction")
-            .select(`
-              interactionCode,
-              chiTietNhuCau
-            `)
-            .in("interactionCode", interactionCodes);
-            
-          if (interactionError) throw interactionError;
-          
-          // Combine ticket data with interaction details
-          const combinedData = ticketData.map(ticket => {
-            const matchingInteraction = interactionData?.find(
-              interaction => interaction.interactionCode === ticket.interactionCodeStart
-            );
-            
-            return {
-              ...ticket,
-              chiTietNhuCau: matchingInteraction?.chiTietNhuCau || "N/A"
-            };
-          });
-          
-          setRecentCalls(combinedData);
-        } else {
-          setRecentCalls([]);
+        if (data) {
+          setRecentCalls(data);
         }
       } catch (error) {
         console.error("Error fetching recent calls:", error);
@@ -153,7 +124,7 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
               <TableHead>Thời gian</TableHead>
               <TableHead>Mã khách hàng</TableHead>
               <TableHead>Trạng thái</TableHead>
-              <TableHead>Chi Tiết Nhu Cầu</TableHead>
+              <TableHead>Mã tương tác</TableHead>
               <TableHead>Mã Ticket</TableHead>
               <TableHead>Tác vụ</TableHead>
             </TableRow>
@@ -191,7 +162,7 @@ export default function CallHistory({ onSearch }: CallHistoryProps) {
                         {call.status}
                       </span>
                     </TableCell>
-                    <TableCell>{call.chiTietNhuCau}</TableCell>
+                    <TableCell>{call.interactionCodeStart}</TableCell>
                     <TableCell>{call.ticketSerial}</TableCell>
                     <TableCell>
                       <Button 
