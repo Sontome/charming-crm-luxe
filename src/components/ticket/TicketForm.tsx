@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Select,
@@ -93,7 +92,7 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
   // Fetch pending tickets for this customer
   const fetchPendingTickets = async () => {
     try {
-      // First get all PENDING tickets for this customer
+      // Only get PENDING tickets for this specific customer
       const { data: ticketData, error: ticketError } = await supabase
         .from("Ticket")
         .select("ticketSerial, timeStart")
@@ -188,7 +187,7 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
         .from("Ticket")
         .update({ 
           timeEnd: now,
-          status: status // This is the fix: use the current status value from the dropdown
+          status: status // Use the current status from the dropdown
         })
         .eq("ticketSerial", selectedPendingTicket);
       
@@ -199,7 +198,7 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       
       console.log("Successfully updated ticket with serial:", selectedPendingTicket, "New status:", status);
       
-      // Create new interaction record with the existing ticket serial
+      // Create new interaction record with the existing ticket serial using the selected status
       const { data: interactionData, error: interactionError } = await supabase
         .from("Interaction")
         .insert({
@@ -209,7 +208,7 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
           chiTietNhuCau: ticketDetail,
           noteInput: notes,
           agentID: agent.id,
-          status: "Trùng", // Set status as "Trùng" for duplicate interactions
+          status: status, // Changed from "Trùng" to use the selected status
           ticketSerial: selectedPendingTicket
         })
         .select()
@@ -217,16 +216,14 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       
       if (interactionError) throw interactionError;
       
-      // If status is DONE, update all interactions with this ticket serial to DONE
-      if (status === "DONE") {
-        const { error: updateInteractionsError } = await supabase
-          .from("Interaction")
-          .update({ status: "DONE" })
-          .eq("ticketSerial", selectedPendingTicket);
-        
-        if (updateInteractionsError) {
-          console.error("Error updating interactions:", updateInteractionsError);
-        }
+      // Update all interactions with this ticket serial to have the same status
+      const { error: updateInteractionsError } = await supabase
+        .from("Interaction")
+        .update({ status: status })
+        .eq("ticketSerial", selectedPendingTicket);
+      
+      if (updateInteractionsError) {
+        console.error("Error updating interactions:", updateInteractionsError);
       }
       
       toast({
