@@ -16,12 +16,27 @@ import { useAuth } from "@/contexts/AuthContext";
 import { generateTicketSerial } from "@/utils/formatters";
 import { ConfigData } from "@/pages/Index";
 import { Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface TicketFormProps {
   customerCode: number;
   configData: ConfigData;
   onSave?: () => void;
   onClear?: () => void;
+}
+
+interface PendingTicket {
+  ticketSerial: string;
+  timeStart: string;
+  nhuCauKH: string;
+  chiTietNhuCau: string;
 }
 
 export default function TicketForm({ customerCode, configData, onSave, onClear }: TicketFormProps) {
@@ -36,6 +51,9 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
   const [channel, setChannel] = useState("Inbound");
   const [departmentCollaboration, setDepartmentCollaboration] = useState("Không");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPendingDialog, setShowPendingDialog] = useState(false);
+  const [pendingTickets, setPendingTickets] = useState<PendingTicket[]>([]);
+  const [selectedPendingTicket, setSelectedPendingTicket] = useState("");
 
   // Update detail options when request type changes
   useEffect(() => {
@@ -72,7 +90,174 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
     }
   }, [configData]);
 
-  const handleSave = async () => {
+  // Fetch pending tickets for this customer
+  const fetchPendingTickets = async () => {
+    try {
+      // First get all PENDING tickets for this customer
+      const { data: ticketData, error: ticketError } = await supabase
+        .from("Ticket")
+        .select("ticketSerial, timeStart")
+        .eq("customerCode", customerCode)
+        .eq("status", "PENDING");
+      
+      if (ticketError) throw ticketError;
+      
+      if (ticketData && ticketData.length > 0) {
+        // For each ticket, get the interaction details
+        const pendingTicketsWithDetails = await Promise.all(
+          ticketData.map(async (ticket) => {
+            const { data: interactionData, error: interactionError } = await supabase
+              .from("Interaction")
+              .select("nhuCauKH, chiTietNhuCau")
+              .eq("ticketSerial", ticket.ticketSerial)
+              .order("interactionCode", { ascending: false })
+              .limit(1)
+              .single();
+            
+            if (interactionError) {
+              console.error("Error fetching interaction:", interactionError);
+              return {
+                ...ticket,
+                nhuCauKH: "Không xác định",
+                chiTietNhuCau: "Không xác định"
+              };
+            }
+            
+            return {
+              ...ticket,
+              nhuCauKH: interactionData.nhuCauKH,
+              chiTietNhuCau: interactionData.chiTietNhuCau
+            };
+          })
+        );
+        
+        setPendingTickets(pendingTicketsWithDetails);
+        return pendingTicketsWithDetails.length > 0;
+      } else {
+        setPendingTickets([]);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error fetching pending tickets:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tải danh sách ticket đang chờ xử lý"
+      });
+      return false;
+    }
+  };
+
+  const handleSaveExisting = async () => {
+    if (!agent) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Bạn chưa đăng nhập",
+      });
+      return;
+    }
+
+    if (!notes || !requestType || !serviceType || !ticketDetail || !status || !channel) {
+      toast({
+        variant: "destructive",
+        title: "Thông tin chưa đầy đủ",
+        description: "Vui lòng điền đầy đủ thông tin trước khi lưu",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const now = new Date().toISOString();
+      
+      // Get customer's lastActivity for timeStart
+      const { data: customerData, error: customerError } = await supabase
+        .from("Customer")
+        .select("lastActivity")
+        .eq("customerCode", customerCode)
+        .single();
+      
+      if (customerError) throw customerError;
+      
+      const timeStart = customerData.lastActivity;
+      
+      // Update the existing ticket's timeEnd
+      const { error: updateTicketError } = await supabase
+        .from("Ticket")
+        .update({ 
+          timeEnd: now,
+          status: status === "DONE" ? "DONE" : "PENDING" // Update status if it's DONE
+        })
+        .eq("ticketSerial", selectedPendingTicket);
+      
+      if (updateTicketError) throw updateTicketError;
+      
+      // Create new interaction record with the existing ticket serial
+      const { data: interactionData, error: interactionError } = await supabase
+        .from("Interaction")
+        .insert({
+          customerCode: customerCode,
+          timeStart: timeStart,
+          nhuCauKH: requestType,
+          chiTietNhuCau: ticketDetail,
+          noteInput: notes,
+          agentID: agent.id,
+          status: "Trùng", // Set status as "Trùng" for duplicate interactions
+          ticketSerial: selectedPendingTicket
+        })
+        .select()
+        .single();
+      
+      if (interactionError) throw interactionError;
+      
+      // If status is DONE, update all interactions with this ticket serial to DONE
+      if (status === "DONE") {
+        const { error: updateInteractionsError } = await supabase
+          .from("Interaction")
+          .update({ status: "DONE" })
+          .eq("ticketSerial", selectedPendingTicket);
+        
+        if (updateInteractionsError) {
+          console.error("Error updating interactions:", updateInteractionsError);
+        }
+      }
+      
+      toast({
+        title: "Đã cập nhật thành công",
+        description: "Thông tin tương tác đã được cập nhật vào ticket hiện có",
+      });
+
+      // Reset form after saving
+      setNotes("");
+      setRequestType("");
+      setServiceType("");
+      setTicketDetail("");
+      setStatus("DONE");
+      setChannel("Inbound");
+      setDepartmentCollaboration("Không");
+      setSelectedPendingTicket("");
+      setShowPendingDialog(false);
+
+      // Call parent onSave if provided
+      if (onSave) onSave();
+      
+      // Call onClear to reset search and ticket history
+      if (onClear) onClear();
+    } catch (error) {
+      console.error("Error updating existing ticket:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể cập nhật thông tin, vui lòng thử lại sau",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveNew = async () => {
     if (!agent) {
       toast({
         variant: "destructive",
@@ -190,6 +375,19 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSave = async () => {
+    // Before saving, check if there are any pending tickets
+    const hasPendingTickets = await fetchPendingTickets();
+    
+    if (hasPendingTickets) {
+      // Show the dialog to choose between existing or new ticket
+      setShowPendingDialog(true);
+    } else {
+      // No pending tickets, proceed with creating a new ticket
+      handleSaveNew();
     }
   };
 
@@ -329,6 +527,68 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
           ) : "Lưu Lại"}
         </Button>
       </div>
+
+      {/* Dialog for pending tickets */}
+      <Dialog open={showPendingDialog} onOpenChange={setShowPendingDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lựa chọn Ticket</DialogTitle>
+            <DialogDescription>
+              Đã có các ticket đang xử lý (PENDING) cho khách hàng này. Bạn có thể chọn cập nhật một ticket hiện có hoặc tạo ticket mới.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Chọn Ticket đang xử lý</label>
+              <Select value={selectedPendingTicket} onValueChange={setSelectedPendingTicket}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn Mã Ticket" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {pendingTickets.map((ticket) => (
+                      <SelectItem key={ticket.ticketSerial} value={ticket.ticketSerial}>
+                        {ticket.ticketSerial} - {ticket.nhuCauKH} - {ticket.chiTietNhuCau}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowPendingDialog(false);
+                handleSaveNew();
+              }}
+            >
+              Tạo Ticket mới
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (selectedPendingTicket) {
+                  handleSaveExisting();
+                } else {
+                  toast({
+                    title: "Chưa chọn Ticket",
+                    description: "Vui lòng chọn một Ticket để cập nhật hoặc tạo Ticket mới.",
+                    variant: "destructive"
+                  });
+                }
+              }}
+              disabled={!selectedPendingTicket}
+            >
+              Cập nhật Ticket đã chọn
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
