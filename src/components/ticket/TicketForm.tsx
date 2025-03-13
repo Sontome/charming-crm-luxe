@@ -183,16 +183,21 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       
       const timeStart = customerData.lastActivity;
       
-      // Update the existing ticket's timeEnd
+      // Update the existing ticket's timeEnd and status
       const { error: updateTicketError } = await supabase
         .from("Ticket")
         .update({ 
           timeEnd: now,
-          status: status === "DONE" ? "DONE" : "PENDING" // Update status if it's DONE
+          status: status // This is the fix: use the current status value from the dropdown
         })
         .eq("ticketSerial", selectedPendingTicket);
       
-      if (updateTicketError) throw updateTicketError;
+      if (updateTicketError) {
+        console.error("Error updating ticket:", updateTicketError);
+        throw updateTicketError;
+      }
+      
+      console.log("Successfully updated ticket with serial:", selectedPendingTicket, "New status:", status);
       
       // Create new interaction record with the existing ticket serial
       const { data: interactionData, error: interactionError } = await supabase
