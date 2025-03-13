@@ -36,6 +36,42 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
   const [channel, setChannel] = useState("Inbound");
   const [departmentCollaboration, setDepartmentCollaboration] = useState("Không");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // New state for pending tickets
+  const [pendingTickets, setPendingTickets] = useState<{id: string, ticketSerial: string}[]>([]);
+  const [selectedPendingTicket, setSelectedPendingTicket] = useState("");
+
+  // Fetch pending tickets for this customer
+  useEffect(() => {
+    if (customerCode) {
+      const fetchPendingTickets = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("Ticket")
+            .select("ticketSerial")
+            .eq("customerCode", customerCode)
+            .eq("status", "PENDING");
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            const tickets = data.map((ticket, index) => ({
+              id: index.toString(),
+              ticketSerial: ticket.ticketSerial
+            }));
+            setPendingTickets(tickets);
+          } else {
+            setPendingTickets([]);
+            setSelectedPendingTicket("");
+          }
+        } catch (error) {
+          console.error("Error fetching pending tickets:", error);
+        }
+      };
+
+      fetchPendingTickets();
+    }
+  }, [customerCode]);
 
   // Update detail options when request type changes
   useEffect(() => {
@@ -107,23 +143,39 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       
       const timeStart = customerData.lastActivity;
       
-      // Get next ticket code
-      const { data: maxTicketData } = await supabase
-        .from("Ticket")
-        .select("ticketCode")
-        .order("ticketCode", { ascending: false })
-        .limit(1)
-        .single();
+      let ticketSerial = "";
+      let interactionStatus = selectedPendingTicket ? "Trùng" : status;
       
-      const nextTicketCode = maxTicketData ? maxTicketData.ticketCode + 1 : 1;
-      
-      // Generate ticket serial with the updated format
-      const ticketSerial = generateTicketSerial(
-        serviceType, 
-        agent.id, 
-        timeStart, 
-        nextTicketCode
-      );
+      // If a pending ticket is selected, use it
+      if (selectedPendingTicket) {
+        ticketSerial = selectedPendingTicket;
+        
+        // Update the timeEnd of the existing ticket
+        const { error: updateTicketError } = await supabase
+          .from("Ticket")
+          .update({ timeEnd: now })
+          .eq("ticketSerial", ticketSerial);
+        
+        if (updateTicketError) throw updateTicketError;
+      } else {
+        // Create a new ticket - get next ticket code
+        const { data: maxTicketData } = await supabase
+          .from("Ticket")
+          .select("ticketCode")
+          .order("ticketCode", { ascending: false })
+          .limit(1)
+          .single();
+        
+        const nextTicketCode = maxTicketData ? maxTicketData.ticketCode + 1 : 1;
+        
+        // Generate ticket serial with the updated format
+        ticketSerial = generateTicketSerial(
+          serviceType, 
+          agent.id, 
+          timeStart, 
+          nextTicketCode
+        );
+      }
 
       // Insert new interaction first
       const { data: interactionData, error: interactionError } = await supabase
@@ -135,7 +187,7 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
           chiTietNhuCau: ticketDetail,
           noteInput: notes,
           agentID: agent.id,
-          status: status,
+          status: interactionStatus,
           ticketSerial: ticketSerial
         })
         .select()
@@ -143,28 +195,43 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       
       if (interactionError) throw interactionError;
       
-      // Insert new ticket with timeStart from lastActivity and timeEnd as now
-      const { error: ticketError } = await supabase
-        .from("Ticket")
-        .insert({
-          ticketSerial: ticketSerial,
-          agent: agent.id,
-          kenhTiepNhan: channel,
-          interactionCodeStart: interactionData.interactionCode,
-          timeStart: timeStart,
-          customerCode: customerCode,
-          phoiHop: departmentCollaboration,
-          status: status,
-          interactionCodeEnd: interactionData.interactionCode,
-          ticketCode: nextTicketCode,
-          timeEnd: now
-        });
-      
-      if (ticketError) throw ticketError;
+      // Only insert new ticket if we're not updating an existing one
+      if (!selectedPendingTicket) {
+        // Get the next ticket code
+        const { data: maxTicketData } = await supabase
+          .from("Ticket")
+          .select("ticketCode")
+          .order("ticketCode", { ascending: false })
+          .limit(1)
+          .single();
+        
+        const nextTicketCode = maxTicketData ? maxTicketData.ticketCode + 1 : 1;
+        
+        // Insert new ticket with timeStart from lastActivity and timeEnd as now
+        const { error: ticketError } = await supabase
+          .from("Ticket")
+          .insert({
+            ticketSerial: ticketSerial,
+            agent: agent.id,
+            kenhTiepNhan: channel,
+            interactionCodeStart: interactionData.interactionCode,
+            timeStart: timeStart,
+            customerCode: customerCode,
+            phoiHop: departmentCollaboration,
+            status: status,
+            interactionCodeEnd: interactionData.interactionCode,
+            ticketCode: nextTicketCode,
+            timeEnd: now
+          });
+        
+        if (ticketError) throw ticketError;
+      }
       
       toast({
         title: "Đã lưu thành công",
-        description: "Thông tin tương tác đã được ghi nhận",
+        description: selectedPendingTicket 
+          ? "Đã cập nhật thông tin tương tác cho ticket đang xử lý" 
+          : "Thông tin tương tác đã được ghi nhận",
       });
 
       // Reset form after saving
@@ -175,6 +242,7 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       setStatus("DONE");
       setChannel("Inbound");
       setDepartmentCollaboration("Không");
+      setSelectedPendingTicket("");
 
       // Call parent onSave if provided
       if (onSave) onSave();
@@ -206,6 +274,27 @@ export default function TicketForm({ customerCode, configData, onSave, onClear }
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {pendingTickets.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Ticket Trùng</label>
+            <Select value={selectedPendingTicket} onValueChange={setSelectedPendingTicket}>
+              <SelectTrigger className="w-full transition-all hover:shadow-sm focus:shadow-md">
+                <SelectValue placeholder="Chọn ticket trùng (nếu có)" />
+              </SelectTrigger>
+              <SelectContent className="animate-fade-in">
+                <SelectGroup>
+                  <SelectItem value="">Không chọn (tạo mới)</SelectItem>
+                  {pendingTickets.map((ticket) => (
+                    <SelectItem key={ticket.id} value={ticket.ticketSerial}>
+                      {ticket.ticketSerial}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="space-y-2">
           <label className="text-sm font-medium">Nhu Cầu Khách Hàng</label>
           <Select value={requestType} onValueChange={(value) => setRequestType(value)}>
