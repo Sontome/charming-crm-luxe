@@ -16,6 +16,7 @@ export type Database = {
           lasttimeactive: string | null
           name: string
           password: string
+          user_role: string | null
         }
         Insert: {
           email: string
@@ -23,6 +24,7 @@ export type Database = {
           lasttimeactive?: string | null
           name: string
           password: string
+          user_role?: string | null
         }
         Update: {
           email?: string
@@ -30,6 +32,7 @@ export type Database = {
           lasttimeactive?: string | null
           name?: string
           password?: string
+          user_role?: string | null
         }
         Relationships: []
       }
@@ -114,6 +117,42 @@ export type Database = {
           status?: string
           ticketSerial?: string
           timeStart?: string
+        }
+        Relationships: []
+      }
+      RawMissCall: {
+        Row: {
+          ani: string | null
+          billsec: string | null
+          duration: number | null
+          GhiAm: string | null
+          loanBriefId: string | null
+          start_stamp: string | null
+          trangThai: string | null
+          trangThaiChung: string | null
+          userName: string | null
+        }
+        Insert: {
+          ani?: string | null
+          billsec?: string | null
+          duration?: number | null
+          GhiAm?: string | null
+          loanBriefId?: string | null
+          start_stamp?: string | null
+          trangThai?: string | null
+          trangThaiChung?: string | null
+          userName?: string | null
+        }
+        Update: {
+          ani?: string | null
+          billsec?: string | null
+          duration?: number | null
+          GhiAm?: string | null
+          loanBriefId?: string | null
+          start_stamp?: string | null
+          trangThai?: string | null
+          trangThaiChung?: string | null
+          userName?: string | null
         }
         Relationships: []
       }

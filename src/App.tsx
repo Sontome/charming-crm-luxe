@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Reports from "./pages/Reports";
+import UploadMisscall from "./pages/UploadMisscall";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/search" element={<Index />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/upload-misscall" element={<UploadMisscall />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

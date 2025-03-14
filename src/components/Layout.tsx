@@ -29,7 +29,9 @@ export default function Layout() {
                 <DropdownMenuTrigger className="outline-none">
                   <div className="text-sm hover:bg-muted/50 rounded-md py-1 px-2 transition-colors">
                     <div className="font-medium">{agent?.name}</div>
-                    <div className="text-muted-foreground text-xs text-left">ID: {agent?.id}</div>
+                    <div className="text-muted-foreground text-xs text-left">
+                      ID: {agent?.id} | {agent?.user_role === 'admin' ? 'Admin' : 'Nhân viên'}
+                    </div>
                   </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">

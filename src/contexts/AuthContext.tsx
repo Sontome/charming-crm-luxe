@@ -8,6 +8,7 @@ interface Agent {
   id: string;
   name: string;
   email: string;
+  user_role?: string;
 }
 
 interface AuthContextType {
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch the agent with the provided ID and password
       const { data, error } = await supabase
         .from("Agent")
-        .select("id, name, email, password")
+        .select("id, name, email, password, user_role")
         .eq("id", id)
         .eq("password", password)
         .maybeSingle();

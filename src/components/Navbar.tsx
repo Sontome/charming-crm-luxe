@@ -1,10 +1,13 @@
 
-import { Home, Search, FileText } from "lucide-react";
+import { Home, Search, FileText, Upload } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "./ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Navbar() {
+  const { agent } = useAuth();
+  
   const menuItems = [
     {
       icon: Home,
@@ -13,7 +16,7 @@ export default function Navbar() {
     },
     {
       icon: Search,
-      label: "Tra cứu",
+      label: "Khảo sát",
       path: "/search",
     },
     {
@@ -22,6 +25,15 @@ export default function Navbar() {
       path: "/reports",
     },
   ];
+
+  // Add the upload button for admin users
+  if (agent?.user_role === 'admin') {
+    menuItems.push({
+      icon: Upload,
+      label: "Upload Misscall",
+      path: "/upload-misscall",
+    });
+  }
 
   return (
     <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm transition-all animate-fade-in">
