@@ -75,6 +75,17 @@ export default function UploadMisscall() {
       setIsUploading(true);
       setUploadProgress(10);
       
+      // First, delete all existing records from RawMissCall table
+      setUploadProgress(20);
+      const { error: deleteError } = await supabase
+        .from('RawMissCall')
+        .delete()
+        .not('ani', 'is', null); // This is a workaround to delete all records, as .delete() without filters is not supported
+      
+      if (deleteError) {
+        throw new Error(`Lỗi khi xóa dữ liệu cũ: ${deleteError.message}`);
+      }
+      
       // Read the file content
       const reader = new FileReader();
       
@@ -111,7 +122,7 @@ export default function UploadMisscall() {
             setUploadProgress(100);
             toast({
               title: "Tải lên thành công",
-              description: `Đã tải lên ${missedCalls.length} bản ghi cuộc gọi nhỡ`,
+              description: `Đã xóa dữ liệu cũ và tải lên ${missedCalls.length} bản ghi cuộc gọi nhỡ mới`,
             });
             
             // Reset form
