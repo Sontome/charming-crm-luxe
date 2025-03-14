@@ -2,13 +2,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Upload, AlertCircle, Check } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { CSVFileUploader } from "@/components/upload/CSVFileUploader";
+import { ProgressIndicator } from "@/components/upload/ProgressIndicator";
+import { parseCSV } from "@/utils/misscallParser";
+import { uploadService } from "@/services/uploadService";
 
 export default function UploadMisscall() {
   const [file, setFile] = useState<File | null>(null);
@@ -25,44 +25,14 @@ export default function UploadMisscall() {
     return null;
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      
-      // Check if the file is a CSV
-      if (selectedFile.name.endsWith('.csv')) {
-        setFile(selectedFile);
-        setError(null);
-      } else {
-        setFile(null);
-        setError('Vui lòng chọn file CSV');
-      }
+  const handleFileChange = (selectedFile: File | null) => {
+    if (selectedFile) {
+      setFile(selectedFile);
+      setError(null);
+    } else {
+      setFile(null);
+      setError('Vui lòng chọn file CSV');
     }
-  };
-
-  const parseCSV = async (text: string) => {
-    const rows = text.split('\n');
-    
-    // Skip header row and empty rows
-    const data = rows
-      .filter((row) => row.trim().length > 0)
-      .slice(1)
-      .map((row) => {
-        const values = row.split(',');
-        return {
-          ani: values[0]?.trim() || null,
-          loanBriefId: values[1]?.trim() || null,
-          userName: values[2]?.trim() || null,
-          start_stamp: values[3]?.trim() || null,
-          duration: isNaN(parseInt(values[4]?.trim() || '0')) ? 0 : parseInt(values[4]?.trim() || '0'),
-          billsec: values[5]?.trim() || null,
-          trangThai: values[6]?.trim() || null,
-          trangThaiChung: values[7]?.trim() || null,
-          GhiAm: values[8]?.trim() || null,
-        };
-      });
-    
-    return data;
   };
 
   const handleUpload = async () => {
@@ -75,16 +45,9 @@ export default function UploadMisscall() {
       setIsUploading(true);
       setUploadProgress(10);
       
-      // First, delete all existing records from RawMissCall table
+      // Clear existing data
+      await uploadService.clearMisscallData();
       setUploadProgress(20);
-      const { error: deleteError } = await supabase
-        .from('RawMissCall')
-        .delete()
-        .not('ani', 'is', null); // This is a workaround to delete all records, as .delete() without filters is not supported
-      
-      if (deleteError) {
-        throw new Error(`Lỗi khi xóa dữ liệu cũ: ${deleteError.message}`);
-      }
       
       // Read the file content
       const reader = new FileReader();
@@ -99,30 +62,16 @@ export default function UploadMisscall() {
             const missedCalls = await parseCSV(csvText);
             setUploadProgress(50);
             
-            // Insert records in batches to avoid timeouts
-            const batchSize = 100;
-            let processed = 0;
-            
-            for (let i = 0; i < missedCalls.length; i += batchSize) {
-              const batch = missedCalls.slice(i, i + batchSize);
-              
-              const { error: insertError } = await supabase
-                .from('RawMissCall')
-                .insert(batch);
-              
-              if (insertError) {
-                throw new Error(`Lỗi khi tải dữ liệu: ${insertError.message}`);
-              }
-              
-              processed += batch.length;
-              const progressPercentage = 50 + (processed / missedCalls.length) * 50;
-              setUploadProgress(Math.min(progressPercentage, 99));
-            }
+            // Upload data
+            const recordCount = await uploadService.uploadMisscalls(
+              missedCalls, 
+              (progress) => setUploadProgress(progress)
+            );
             
             setUploadProgress(100);
             toast({
               title: "Tải lên thành công",
-              description: `Đã xóa dữ liệu cũ và tải lên ${missedCalls.length} bản ghi cuộc gọi nhỡ mới`,
+              description: `Đã xóa dữ liệu cũ và tải lên ${recordCount} bản ghi cuộc gọi nhỡ mới`,
             });
             
             // Reset form
@@ -164,47 +113,15 @@ export default function UploadMisscall() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Lỗi</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          <CSVFileUploader 
+            onFileSelect={handleFileChange}
+            error={error}
+          />
           
-          <div className="space-y-2">
-            <label htmlFor="file-upload" className="text-sm font-medium">
-              Chọn file CSV
-            </label>
-            <div className="border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center">
-              <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground mb-2">Kéo thả file CSV vào đây hoặc nhấn chọn file</p>
-              <Input
-                id="file-upload"
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="max-w-sm"
-              />
-            </div>
-          </div>
-          
-          {file && (
-            <Alert>
-              <Check className="h-4 w-4" />
-              <AlertTitle>File đã chọn</AlertTitle>
-              <AlertDescription>{file.name} ({Math.round(file.size / 1024)} KB)</AlertDescription>
-            </Alert>
-          )}
-          
-          {isUploading && (
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-out" 
-                style={{ width: `${uploadProgress}%` }} 
-              />
-            </div>
-          )}
+          <ProgressIndicator 
+            isUploading={isUploading} 
+            progress={uploadProgress} 
+          />
         </CardContent>
         <CardFooter>
           <Button 
